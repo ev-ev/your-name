@@ -85,6 +85,38 @@ struct llchar* LLCHAR_addStr(char* st, size_t sz, struct llchar* list) {
     return ptr;
 }
 
+//The only purpose of this shit was a hack to get rid of CR symbol from clipboard lol
+struct llchar* LLCHAR_addStrEx(char* st, size_t sz, struct llchar* list, char ex) {
+    if (list->next) {
+        struct llchar* oldnext = list->next;
+        list->next = 0;
+        struct llchar* ptr = list;
+        for (size_t i = 0; i < sz; i++) {
+            if (st[i] != ex)
+                ptr = LLCHAR_add(st[i], ptr);
+            if (!ptr) {
+                printf("Ran out of space writing string elements to linked list");
+                return 0;
+            }
+        }
+        ptr->next = oldnext;
+        oldnext->prev = ptr;
+        
+        return ptr;
+    }
+    
+    struct llchar* ptr = list;
+    for (size_t i = 0; i < sz; i++) {
+        if (st[i] != ex)
+            ptr = LLCHAR_add(st[i], ptr);
+        if (!ptr) {
+            printf("Ran out of space writing string elements to linked list");
+            return 0;
+        }
+    }
+    return ptr;
+}
+
 struct llchar* LLCHAR_delete(struct llchar* list) {
     struct llchar* prev = list->prev;
     if (prev) { // Don't delete reserved entry
@@ -356,17 +388,55 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                 // fall through
                 default:
                 {
+                    if (HIBYTE(GetKeyState(VK_CONTROL))) { //Control symbols fuck up input
+                        break;
+                    }
                     struct llchar* ptr = LLCHAR_add(wParam, pState->cur);
                     if (!ptr){
                         printf("Out of memory !");
                         break;
                     }
                     pState->cur = ptr;
-                    //printf("%c\n", (char) wParam);
+                    
                 }
             }
             InvalidateRect(hwnd, NULL, 0);
-            //printf("%c",wParam);
+            
+            return 0;
+        }
+        case WM_COMMAND:
+        {
+            switch (LOBYTE(wParam)) {
+                case 'V':
+                {
+                    
+                    if (!OpenClipboard(0)) {
+                        printf("Error opening clipboard");
+                        break;
+                    }
+                    
+                    HANDLE clip = GetClipboardData(CF_TEXT);
+                    if (!clip) {
+                        printf("No clipboard data object");
+                        break;
+                    }
+                    char* text = (char*) GlobalLock(clip);
+                    
+                    if (!text) {
+                        printf("No clipboard data");
+                    }
+                    
+                    struct llchar* ptr = LLCHAR_addStrEx(text, strlen(text), pState->cur, '\r');
+                    if (ptr) {
+                        pState->cur = ptr;
+                    }
+                    
+                    GlobalUnlock(clip);
+                    
+                    CloseClipboard();
+                }
+            }
+            InvalidateRect(hwnd, NULL, 0);
             return 0;
         }
         case WM_KEYDOWN:
@@ -490,23 +560,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     
     struct StateInfo pState = {0};
     pState.cursor_active = 0;
-    /*pState.text_ptr = malloc(10);
-
-    if (!pState.text_ptr) {
-        printf("Unable to malloc 10 bytes of memory, are you broke ?");
-        return 0;
-    }
-    
-    pState.text_ptr[0] = 'Y';
-    pState.text_ptr[1] = 'o';
-    pState.text_ptr[2] = 'u';
-    pState.text_ptr[3] = 'r';
-    pState.text_ptr[4] = '\n';
-    pState.text_ptr[5] = 'N';
-    pState.text_ptr[6] = 'a';
-    pState.text_ptr[7] = 'm';
-    pState.text_ptr[8] = 'e';
-    pState.text_ptr[9] = 0;*/
     pState.text_max_size = 10;
     pState.text_size = 9;
     pState.font_size = 30;
@@ -520,7 +573,20 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     pState.head->prev = 0;
     pState.cur = LLCHAR_addStr("Your\nName", 9, pState.head);
     
+    //Make 'accelerator' table
+    ACCEL paccel[6];
+    paccel[0].fVirt = FVIRTKEY | FCONTROL; paccel[0].key = 'C'; paccel[0].cmd = 'C';
+    paccel[1].fVirt = FVIRTKEY | FCONTROL; paccel[1].key = 'V'; paccel[1].cmd = 'V';
+    paccel[2].fVirt = FVIRTKEY | FCONTROL; paccel[2].key = 'X'; paccel[2].cmd = 'X';
+    paccel[3].fVirt = FVIRTKEY | FCONTROL; paccel[3].key = 'A'; paccel[3].cmd = 'A';
+    paccel[4].fVirt = FVIRTKEY | FCONTROL; paccel[4].key = 'Z'; paccel[4].cmd = 'Z';
+    paccel[5].fVirt = FVIRTKEY | FCONTROL; paccel[5].key = 'Y'; paccel[5].cmd = 'Y';
     
+    HACCEL hAccel = CreateAcceleratorTable(paccel, 6);
+    if (!hAccel) {
+        printf("Error creating accelerator table %ld", GetLastError());
+        return 0;
+    }
     
     HWND winHwnd = CreateWindowEx(
         0,
@@ -545,9 +611,13 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     
     MSG msg = { };
     while (GetMessage(&msg, NULL, 0, 0) > 0) {
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
+        if (!TranslateAccelerator(winHwnd, hAccel, &msg)){
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
     }
+    
+    DestroyAcceleratorTable(hAccel);
     
     return 0;
 }
