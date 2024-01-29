@@ -1,5 +1,12 @@
+Bugs
+[!]More characters on screen = more bad for scroll bar ? -> issue, word wrap not accounted for
 [-]Offscreen cursor
-[0]Non english support
+
+
+Targets
+[!']Undo
+[+]Make cursor nicer
+[o]Non english support
 
 
 RESOLVED

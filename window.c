@@ -23,11 +23,15 @@ struct StateInfo {
     struct llchar* head;
     struct llchar* cur;
     char* line;
+    SCROLLINFO scroll_info;
     
     size_t text_size;
     size_t text_max_size;
     int font_size;
+    int font_height;
+    int font_max_width;
     int is_monospaced;
+    int xClient;
     
     int idTimer;
     
@@ -40,7 +44,6 @@ struct StateInfo {
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
     struct StateInfo* pState = (struct StateInfo*) GetWindowLongPtr(hwnd, GWLP_USERDATA);
     
-    
     switch (uMsg)
     {
         case WM_CREATE:
@@ -49,6 +52,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             CREATESTRUCT* pCreate = (CREATESTRUCT*) lParam;
             pState = (struct StateInfo*) pCreate->lpCreateParams;
             SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR) pState);
+            
+            pState->xClient = pCreate->cx;
             
             //Make the carret blink
             SetTimer(hwnd, pState->idTimer = 1, GetCaretBlinkTime(), 0);
@@ -62,6 +67,9 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             pState->hbmM = CreateCompatibleBitmap(hdc, rc.right - rc.left, rc.bottom - rc.top);
             EndPaint(hwnd, &ps);
             
+            SetBkMode(pState->hdcM, TRANSPARENT); //Render text with transparent background
+            SetMapMode(pState->hdcM, MM_TEXT); //Ensure map mode is pixel to pixel
+            
             //Create brush for carret
             pState->hPenNew = CreatePen(PS_SOLID, 1, RGB(0,0,0));
             
@@ -73,6 +81,24 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             logfont.lfHeight = pState->font_size;
             
             pState->hNewFont = CreateFontIndirect(&logfont);
+            
+            HFONT hOldFont = (HFONT)SelectObject(pState->hdcM, pState->hNewFont);
+            
+            TEXTMETRIC lptm;
+            GetTextMetrics(pState->hdcM, &lptm);
+            pState->font_height = lptm.tmHeight;
+            pState->font_max_width = lptm.tmMaxCharWidth;
+            
+            SelectObject(pState->hdcM, hOldFont);
+            
+            pState->scroll_info.cbSize = sizeof(SCROLLINFO);
+            pState->scroll_info.fMask = SIF_RANGE | SIF_PAGE;
+            pState->scroll_info.nMin = 0;
+            if (!pState->scroll_info.nMax)
+                pState->scroll_info.nMax = 0; //lines - 1
+            pState->scroll_info.nPage = pCreate->y / pState->font_height;
+            SetScrollInfo(hwnd, SB_VERT, &pState->scroll_info, 1);
+            
             return 0;
         }
         
@@ -85,7 +111,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         
         case WM_PAINT:
         {
-            unsigned int font_size = pState->font_size;
+            int font_height = pState->font_height;
+            int font_width = pState->font_max_width;
             int cursor_active = pState->cursor_active;
             struct llchar* head = pState->head;
             struct llchar* cur = pState->cur;
@@ -97,30 +124,31 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             HDC hdc = BeginPaint(hwnd, &ps);
             HDC hbmOld = SelectObject(hdcM, pState->hbmM);
             
+            //Get Vscroll position
+            pState->scroll_info.fMask  = SIF_POS;
+            GetScrollInfo (hwnd, SB_VERT, &pState->scroll_info);
+            int scrollY = pState->scroll_info.nPos;
+            
+            //printf("%d\n",scrollY);
+            
             FillRect(hdcM, &ps.rcPaint, (HBRUSH) (COLOR_WINDOW+1));
             
             
             HFONT hOldFont = (HFONT)SelectObject(hdcM, pState->hNewFont);
-            
-            //Get font height in pixels
-            SIZE sz;
-            GetTextExtentPoint32(hdcM, L"Test String ON iCE", 18, &sz);
-            font_size = sz.cy;
+            SIZE sz; //For GetTextExtent
             
             //Divide available space into rows for drawing text.
             RECT rect;
             GetClientRect(hwnd, &rect);
             
-            size_t first = rect.top / font_size;
-            size_t last = rect.bottom / font_size;
-            size_t current = first;
+            size_t first = rect.top / font_height;
+            size_t last = rect.bottom / font_height;
+            size_t current = first - scrollY;
             
-            SetBkMode(hdcM, TRANSPARENT); //Render text with transparent background
-            
-            size_t line_max = (rect.right - rect.left)/(sz.cx / 18) + 10; //Calculat approx max char size of one full screen
-            LPWSTR lpWideCharStr = malloc(line_max * 6);
+            size_t line_max = (rect.right - rect.left)/(font_width) + 10; //Calculat approx max char size of one full screen
+            LPWSTR lpWideCharStr = malloc(line_max * 5);
             if (!line)
-                line = malloc(line_max * 6); //Used to malloc line here, now its in the pState to minimize malloc
+                line = malloc(line_max * 5); //Used to malloc line here, now its in the pState to minimize malloc
             size_t line_sz = 0;
             struct llchar* ptr = head->next; //First item is reserved
             while (ptr){
@@ -135,21 +163,21 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                 if (ptr == cur){ //If its a newline, pointer at the start, otherwise at the end of line           
                     if (ptr->ch == '\n') {
                         pState->curX = rect.left;
-                        pState->curY = current * font_size + font_size;
+                        pState->curY = current * font_height + font_height;
                     } else {
                         pState->curX = rect.left + sz.cx;
-                        pState->curY = current * font_size;
+                        pState->curY = current * font_height;
                     }
                 }
                 if (ptr->ch == '\n' || !ptr->next || sz.cx > (rect.right - rect.left - 15)) { // 15 is right margin
                     //Check if in rendersquare then render
-                    if (current * font_size + font_size >= ps.rcPaint.top && current * font_size <= ps.rcPaint.bottom){
-                        TabbedTextOut(hdcM, rect.left, current * font_size, lpWideCharStr, line_sz, 0, 0, 0);  
+                    if ((current - 0) * font_height + font_height >= ps.rcPaint.top && (current - 0) * font_height <= ps.rcPaint.bottom){
+                        TabbedTextOut(hdcM, rect.left, (current - 0) * font_height, lpWideCharStr, line_sz, 0, 0, 0);  
                     }
                     line_sz = 0;
                     current += 1;
-                    if (current > last) //Run out of rows
-                        break;
+                    //if (current > last) //Run out of rows
+                    //    break;
                 }
                 ptr = ptr->next;
             }
@@ -159,21 +187,23 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             
             if (cur == head) { //If its inside the 'reserved' first char
                 pState->curX = rect.left;
-                pState->curY = first*font_size;
+                pState->curY = first*font_height;
             }
             //Draw cursor
             if (cursor_active){
                 HPEN hPenOld = SelectObject(hdcM, pState->hPenNew);
                 MoveToEx(hdcM, pState->curX, pState->curY, 0);
-                LineTo(hdcM, pState->curX, pState->curY + font_size);
+                LineTo(hdcM, pState->curX, pState->curY + font_height);
                 SelectObject(hdcM, hPenOld);
                 
             }
+            
             BitBlt(hdc, rect.left, rect.top, rect.right-rect.left, rect.bottom-rect.top, hdcM, 0, 0, SRCCOPY);
             
             SelectObject(hdcM, hbmOld);
             
             EndPaint(hwnd, &ps);
+            
             
             //Max perf on my machine - 3ms
             return 0;
@@ -204,7 +234,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                 {
                     KillTimer(hwnd, 1);
                     pState->idTimer = -1;
-                    return 0;
+                    break;
                 }
                 case SIZE_RESTORED:
                 case SIZE_MAXIMIZED:
@@ -223,9 +253,14 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                     pState->hbmM = CreateCompatibleBitmap(hdc, rc.right - rc.left, rc.bottom - rc.top);
                     EndPaint(hwnd, &ps);
                     
-                    return 0;
+                    break;
                 }
             }
+            int yClient = HIWORD(lParam);
+            pState->xClient = LOWORD(lParam);
+            pState->scroll_info.fMask = SIF_RANGE | SIF_PAGE;
+            pState->scroll_info.nPage = yClient / pState->font_height;
+            SetScrollInfo(hwnd, SB_VERT, &pState->scroll_info, 1);
             return 0;
         }
         case WM_KILLFOCUS:
@@ -286,8 +321,14 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                     
                 }
             }
+            int lines = LLCHAR_countLinesTill(pState->head, pState->cur, pState->font_max_width, pState->xClient - 15);
+            if (lines != pState->scroll_info.nMax + 1){
+                pState->scroll_info.nMax = lines - 1;
+                pState->scroll_info.nPos = lines - 1;
+                pState->scroll_info.fMask = SIF_RANGE | SIF_PAGE | SIF_POS;
+                SetScrollInfo(hwnd, SB_VERT, &pState->scroll_info, 1);
+            }
             InvalidateRect(hwnd, NULL, 0);
-            
             return 0;
         }
         case WM_COMMAND:
@@ -300,6 +341,13 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                         pState->cur = ptr;
                     }
                     pState->curDt = 0;
+                    int lines = LLCHAR_countLines(pState->head, pState->font_max_width, pState->xClient - 15);
+                    if (lines != pState->scroll_info.nMax + 1){
+                        pState->scroll_info.nMax = lines - 1;
+                        pState->scroll_info.nPos = lines - 1;
+                        pState->scroll_info.fMask = SIF_RANGE | SIF_PAGE | SIF_POS;
+                        SetScrollInfo(hwnd, SB_VERT, &pState->scroll_info, 1);
+                    }
                 }
             }
             InvalidateRect(hwnd, NULL, 0);
@@ -337,10 +385,76 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                     }
                 }
             }
+            int lines = LLCHAR_countLinesTill(pState->head, pState->cur, pState->font_max_width, pState->xClient - 15);
+            if (lines != pState->scroll_info.nMax + 1){
+                pState->scroll_info.nMax = lines - 1;
+                pState->scroll_info.nPos = lines - 1;
+                pState->scroll_info.fMask = SIF_RANGE | SIF_PAGE | SIF_POS;
+                SetScrollInfo(hwnd, SB_VERT, &pState->scroll_info, 1);
+            }
+    
             KillTimer(hwnd, 1);
             pState->cursor_active = 1;
             SetTimer(hwnd, 1, GetCaretBlinkTime(), 0);
             InvalidateRect(hwnd, NULL, 0);
+            return 0;
+        }
+        case WM_VSCROLL:
+        {
+            SCROLLINFO newS;
+            newS.cbSize = sizeof(newS);
+            newS.fMask = SIF_ALL;
+            GetScrollInfo(hwnd, SB_VERT, &newS);
+            int oldY = newS.nPos;
+            switch (LOWORD(wParam))
+            {
+                case SB_TOP:
+                {
+                    newS.nPos = newS.nMin;
+                    break;
+                }
+                case SB_BOTTOM:
+                {
+                    newS.nPos = newS.nMax;
+                    break;
+                }
+                case SB_LINEUP:
+                {
+                    newS.nPos -= 1;
+                    break;
+                }
+                case SB_LINEDOWN:
+                {
+                    newS.nPos += 1;
+                    break;
+                }
+                case SB_PAGEUP:
+                {
+                    newS.nPos -= newS.nPage;
+                    break;
+                }
+                case SB_PAGEDOWN:
+                {
+                    newS.nPos += newS.nPage;
+                    break;
+                }
+                case SB_THUMBTRACK:
+                {
+                    newS.nPos = newS.nTrackPos;
+                    break;
+                }
+                default:
+                    break;
+            }
+            
+            newS.fMask = SIF_POS;
+            SetScrollInfo(hwnd, SB_VERT, &newS, 1);
+            GetScrollInfo(hwnd, SB_VERT, &newS);
+            
+            if (newS.nPos != oldY){
+                ScrollWindow(hwnd, 0, pState->font_height * (oldY - newS.nPos), 0, 0);
+                UpdateWindow(hwnd);
+            }
             return 0;
         }
     }
@@ -377,6 +491,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     pState.head->next = 0;
     pState.head->prev = 0;
     pState.cur = LLCHAR_addStr("Your\nName",9 , pState.head);
+    memset(&pState.scroll_info, 0, sizeof(SCROLLINFO));
     
     //Make 'accelerator' table
     ACCEL paccel[6];
@@ -397,7 +512,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         0,
         CLASS_NAME,
         L"Your Name.",
-        WS_OVERLAPPEDWINDOW,
+        WS_OVERLAPPEDWINDOW | WS_VSCROLL,
 
         CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
 

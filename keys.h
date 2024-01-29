@@ -57,6 +57,8 @@ struct llchar* KEYS_moveDownMono(struct llchar* cur, struct llchar* head, int* l
         *lastDt = dt;
     }
     
+    if (!ptr->next) //Nothing to do here
+        return ptr;
     
     //Go to start of next line 
     ptr = ptr->next;

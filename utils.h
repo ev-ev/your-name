@@ -116,11 +116,42 @@ void UTILS_LLCHAR_dumpB(struct llchar* list) {
     printf("\n");
 }
 
+int UTILS_LLCHAR_countLines(struct llchar* head, int font_width, int maxsz) {
+    struct llchar* ptr = head;
+    int lines = 1;
+    int linesz = 0;
+    while (ptr) {
+        linesz += font_width;
+        if (ptr->ch == '\n' || linesz > maxsz){
+            lines += 1;
+            linesz = ptr->ch == '\n' ? 0 : 1;
+        }
+        ptr = ptr->next;
+    }
+    return lines;
+}
+
+int UTILS_LLCHAR_countLinesTill(struct llchar* head, struct llchar* cur, int font_width, int maxsz) {
+    struct llchar* ptr = head;
+    int lines = 1;
+    int linesz = 0;
+    while (ptr && ptr != cur) {
+        linesz += font_width;
+        if (ptr->ch == '\n' || linesz > maxsz){
+            lines += 1;
+            linesz = ptr->ch == '\n' ? 0 : 1;
+        }
+        ptr = ptr->next;
+    }
+    return lines;
+}
+
 #define LLCHAR_add UTILS_LLCHAR_add
 #define LLCHAR_addStr UTILS_LLCHAR_addStr
 #define LLCHAR_addStrEx UTILS_LLCHAR_addStrEx
 #define LLCHAR_delete UTILS_LLCHAR_delete
 #define LLCHAR_dumpA UTILS_LLCHAR_dumpA
 #define LLCHAR_dumpB UTILS_LLCHAR_dumpB
-
+#define LLCHAR_countLines UTILS_LLCHAR_countLines
+#define LLCHAR_countLinesTill UTILS_LLCHAR_countLinesTill
 #endif
