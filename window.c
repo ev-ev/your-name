@@ -5,18 +5,20 @@
 #define CLKS() clock_t start = clock(), diff; 
 #define CLKE() diff = clock() - start; int msec = diff * 1000 / CLOCKS_PER_SEC; printf("Time taken %d seconds %d milliseconds\n", msec/1000, msec%1000);
 
-
-
 struct llchar {
     char ch;
     struct llchar* prev;
     struct llchar* next;
 };
 
+#include "utils.h"
+#include "keys.h" // Keys.h depends on llchar
+
 struct StateInfo {
     int cursor_active;
     int curX;
     int curY;
+    int curDt;
     
     struct llchar* head;
     struct llchar* cur;
@@ -34,122 +36,6 @@ struct StateInfo {
     HPEN hPenNew;
     HFONT hNewFont;
 };
-
-struct llchar* LLCHAR_add(char ch, struct llchar* list){
-    if (list->next) {
-        struct llchar* oldnext = list->next;
-        list->next = malloc(sizeof(struct llchar));
-        if (!list->next)
-            return 0;
-        list->next->ch = ch;
-        list->next->prev = list;
-        list->next->next = oldnext;
-        oldnext->prev = list->next;
-        return list->next;
-    }
-    list->next = malloc(sizeof(struct llchar));
-    if (!list->next)
-        return 0;
-    list->next->ch = ch;
-    list->next->prev = list;
-    list->next->next = 0;
-    return list->next;
-}
-
-struct llchar* LLCHAR_addStr(char* st, size_t sz, struct llchar* list) {
-    if (list->next) {
-        struct llchar* oldnext = list->next;
-        list->next = 0;
-        struct llchar* ptr = list;
-        for (size_t i = 0; i < sz; i++) {
-            ptr = LLCHAR_add(st[i], ptr);
-            if (!ptr) {
-                printf("Ran out of space writing string elements to linked list");
-                return 0;
-            }
-        }
-        ptr->next = oldnext;
-        oldnext->prev = ptr;
-        
-        return ptr;
-    }
-    
-    struct llchar* ptr = list;
-    for (size_t i = 0; i < sz; i++) {
-        ptr = LLCHAR_add(st[i], ptr);
-        if (!ptr) {
-            printf("Ran out of space writing string elements to linked list");
-            return 0;
-        }
-    }
-    return ptr;
-}
-
-//The only purpose of this shit was a hack to get rid of CR symbol from clipboard lol
-struct llchar* LLCHAR_addStrEx(char* st, size_t sz, struct llchar* list, char ex) {
-    if (list->next) {
-        struct llchar* oldnext = list->next;
-        list->next = 0;
-        struct llchar* ptr = list;
-        for (size_t i = 0; i < sz; i++) {
-            if (st[i] != ex)
-                ptr = LLCHAR_add(st[i], ptr);
-            if (!ptr) {
-                printf("Ran out of space writing string elements to linked list");
-                return 0;
-            }
-        }
-        ptr->next = oldnext;
-        oldnext->prev = ptr;
-        
-        return ptr;
-    }
-    
-    struct llchar* ptr = list;
-    for (size_t i = 0; i < sz; i++) {
-        if (st[i] != ex)
-            ptr = LLCHAR_add(st[i], ptr);
-        if (!ptr) {
-            printf("Ran out of space writing string elements to linked list");
-            return 0;
-        }
-    }
-    return ptr;
-}
-
-struct llchar* LLCHAR_delete(struct llchar* list) {
-    struct llchar* prev = list->prev;
-    if (prev) { // Don't delete reserved entry
-        prev->next = list->next;
-        if (list->next)
-            list->next->prev = prev;
-        
-        free(list);
-        return prev;
-    }
-    list->ch = 0;
-    return list;
-}
-
-void LLCHAR_dumpA(struct llchar* list) {
-    struct llchar* ptr = list;
-    printf("%c",ptr->ch);
-    while (ptr->next) {
-        ptr = ptr->next;
-        printf("%c",ptr->ch);
-    }
-    printf("\n");
-}
-void LLCHAR_dumpB(struct llchar* list) {
-    struct llchar* ptr = list;
-    printf("%d ",ptr->ch);
-    while (ptr->next) {
-        ptr = ptr->next;
-        printf("%d ",ptr->ch);
-    }
-    printf("\n");
-}
-
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
     struct StateInfo* pState = (struct StateInfo*) GetWindowLongPtr(hwnd, GWLP_USERDATA);
@@ -409,31 +295,11 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             switch (LOBYTE(wParam)) {
                 case 'V':
                 {
-                    
-                    if (!OpenClipboard(0)) {
-                        printf("Error opening clipboard");
-                        break;
-                    }
-                    
-                    HANDLE clip = GetClipboardData(CF_TEXT);
-                    if (!clip) {
-                        printf("No clipboard data object");
-                        break;
-                    }
-                    char* text = (char*) GlobalLock(clip);
-                    
-                    if (!text) {
-                        printf("No clipboard data");
-                    }
-                    
-                    struct llchar* ptr = LLCHAR_addStrEx(text, strlen(text), pState->cur, '\r');
-                    if (ptr) {
+                    struct llchar* ptr = KEYS_accel_ctrl_v(pState->cur);
+                    if (ptr){
                         pState->cur = ptr;
                     }
-                    
-                    GlobalUnlock(clip);
-                    
-                    CloseClipboard();
+                    pState->curDt = 0;
                 }
             }
             InvalidateRect(hwnd, NULL, 0);
@@ -447,89 +313,28 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                 {
                     if (pState->cur->prev)
                         pState->cur = pState->cur->prev;
+                    pState->curDt = 0; //Reset the cursor position so when up key is pressed its reset
                     break;
                 }
                 case VK_RIGHT:
                 {
                     if (pState->cur->next)
                         pState->cur = pState->cur->next;
+                    pState->curDt = 0;
                     break;
                 }
                 case VK_UP:
                 {
                     if (pState->is_monospaced) {
-                        //Rollback till a newline, then to another then fw X chars
-                        struct llchar* ptr = pState->cur;
-                        size_t index_from_start = 0;
-                        int index_calculated = 0;
-                        int start_loc_found = 0;
-                        while (ptr->prev) { // Exclude final one
-                            if (ptr->ch == '\n' || ptr->prev == pState->head) {
-                                if (index_calculated) {
-                                    start_loc_found = 1;
-                                    if (ptr->prev == pState->head){
-                                        ptr = ptr->prev;
-                                    }
-                                    break;
-                                } else
-                                    index_calculated = 1;
-                            }
-                            if (!index_calculated)
-                                index_from_start += 1;
-                            ptr = ptr->prev;
-                        }
-                        if (start_loc_found){
-                            for (size_t i = 0; i < index_from_start; i++) {
-                                if (ptr->ch == '\n' && i != 0) {
-                                    ptr = ptr->prev; //Go to start of line
-                                    break;
-                                }
-                                ptr = ptr->next;
-                            }
-                            pState->cur = ptr;
-                        } else {
-                            pState->cur = pState->head;
-                        }
+                        pState->cur = KEYS_moveUpMono(pState->cur, pState->head, &pState->curDt);
                     }
                     break;
                 }
                 case VK_DOWN:
                 {
                     if (pState->is_monospaced) {
-                        //rollback till a newline, then to fw to a newline then fw X chars
-                        struct llchar* ptr = pState->cur;
-                        size_t index_from_start = 0;
-                        while (ptr->prev) { // Exclude final one
-                            if (ptr->ch == '\n' || ptr->prev == pState->head) {
-                                if (ptr->prev == pState->head)
-                                    index_from_start += 1;
-                                break;
-                            }
-                            index_from_start += 1;
-                            ptr = ptr->prev;
-                        }
-                        //fw to next newline
-                        ptr = ptr->next;
-                        while (ptr){
-                            if (ptr->ch == '\n' || !ptr->next) {
-                                break;
-                            }
-                            ptr = ptr->next;
-                        }
-                        
-                        for (size_t i = 0; i < index_from_start; i++) {
-                            if (ptr->ch == '\n' && i != 0) {
-                                ptr = ptr->prev; //Go to start of line
-                                break;
-                            }
-                            if (ptr->next)
-                                ptr = ptr->next;
-                            else
-                                break;
-                        }
-                        pState->cur = ptr;
+                        pState->cur = KEYS_moveDownMono(pState->cur, pState->head, &pState->curDt);
                     }
-                    break;
                 }
             }
             KillTimer(hwnd, 1);
@@ -571,7 +376,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     pState.head->ch = 0;
     pState.head->next = 0;
     pState.head->prev = 0;
-    pState.cur = LLCHAR_addStr("Your\nName", 9, pState.head);
+    pState.cur = LLCHAR_addStr("Your\nName",9 , pState.head);
     
     //Make 'accelerator' table
     ACCEL paccel[6];

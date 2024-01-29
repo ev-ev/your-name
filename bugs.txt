@@ -1,2 +1,6 @@
-Offscreen cursor
-not english text
+[-]Offscreen cursor
+[0]Non english support
+
+
+RESOLVED
+[+]Crash when pressing arrow down with no text in line
