@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <windows.h>
+#include <Windowsx.h>
 #include <time.h>
 
 #define CLKS() clock_t start = clock(), diff; 
@@ -7,6 +8,7 @@
 
 struct llchar {
     char ch;
+    char wrapped;
     struct llchar* prev;
     struct llchar* next;
 };
@@ -20,13 +22,13 @@ struct StateInfo {
     int curY;
     int curDt;
     
+    char* fp;
     struct llchar* head;
     struct llchar* cur;
+    size_t curAtLine;
     char* line;
     SCROLLINFO scroll_info;
     
-    size_t text_size;
-    size_t text_max_size;
     int font_size;
     int font_height;
     int font_max_width;
@@ -164,15 +166,21 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                     if (ptr->ch == '\n') {
                         pState->curX = rect.left;
                         pState->curY = current * font_height + font_height;
+                        pState->curAtLine = current + scrollY + 1;
                     } else {
                         pState->curX = rect.left + sz.cx;
                         pState->curY = current * font_height;
+                        pState->curAtLine = current + scrollY;
                     }
                 }
                 if (ptr->ch == '\n' || !ptr->next || sz.cx > (rect.right - rect.left - 15)) { // 15 is right margin
                     //Check if in rendersquare then render
                     if ((current - 0) * font_height + font_height >= ps.rcPaint.top && (current - 0) * font_height <= ps.rcPaint.bottom){
                         TabbedTextOut(hdcM, rect.left, (current - 0) * font_height, lpWideCharStr, line_sz, 0, 0, 0);  
+                    }
+                    
+                    if (sz.cx > (rect.right - rect.left - 15)) {
+                        ptr->wrapped = 1;
                     }
                     line_sz = 0;
                     current += 1;
@@ -321,11 +329,12 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                     
                 }
             }
-            int lines = LLCHAR_countLinesTill(pState->head, pState->cur, pState->font_max_width, pState->xClient - 15);
-            if (lines != pState->scroll_info.nMax + 1){
+            pState->curDt = 0; //Request a refresh of current cursor in line position
+            int lines = LLCHAR_countLinesTill(pState->head, pState->cur);
+            if (lines > pState->scroll_info.nMax + 1 || (wParam == '\b' && lines < pState->scroll_info.nMax + 1)){ //If the maximum amount of lines change, update
                 pState->scroll_info.nMax = lines - 1;
                 pState->scroll_info.nPos = lines - 1;
-                pState->scroll_info.fMask = SIF_RANGE | SIF_PAGE | SIF_POS;
+                pState->scroll_info.fMask = SIF_RANGE | SIF_POS;
                 SetScrollInfo(hwnd, SB_VERT, &pState->scroll_info, 1);
             }
             InvalidateRect(hwnd, NULL, 0);
@@ -341,11 +350,11 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                         pState->cur = ptr;
                     }
                     pState->curDt = 0;
-                    int lines = LLCHAR_countLines(pState->head, pState->font_max_width, pState->xClient - 15);
-                    if (lines != pState->scroll_info.nMax + 1){
+                    int lines = LLCHAR_countLines(pState->head);
+                    if (lines > pState->scroll_info.nMax + 1){ //If max lines updates, change
                         pState->scroll_info.nMax = lines - 1;
                         pState->scroll_info.nPos = lines - 1;
-                        pState->scroll_info.fMask = SIF_RANGE | SIF_PAGE | SIF_POS;
+                        pState->scroll_info.fMask = SIF_RANGE | SIF_POS;
                         SetScrollInfo(hwnd, SB_VERT, &pState->scroll_info, 1);
                     }
                 }
@@ -355,47 +364,72 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         }
         case WM_KEYDOWN:
         {
+            int line_update = 0;
             switch (wParam)
             {
                 case VK_LEFT:
                 {
-                    if (pState->cur->prev)
+                    if (pState->cur->prev){
+                        if (pState->cur->ch == '\n' || pState->cur->wrapped)
+                            line_update -= 1;
                         pState->cur = pState->cur->prev;
+                    }
                     pState->curDt = 0; //Reset the cursor position so when up key is pressed its reset
                     break;
                 }
                 case VK_RIGHT:
                 {
-                    if (pState->cur->next)
+                    if (pState->cur->next){
                         pState->cur = pState->cur->next;
+                        if (pState->cur->ch == '\n' || pState->cur->wrapped)
+                            line_update += 1;
+                    }
                     pState->curDt = 0;
                     break;
                 }
                 case VK_UP:
                 {
                     if (pState->is_monospaced) {
-                        pState->cur = KEYS_moveUpMono(pState->cur, pState->head, &pState->curDt);
+                        pState->cur = KEYS_moveUpMono(pState->cur, pState->head, &pState->curDt, &line_update);
                     }
                     break;
                 }
                 case VK_DOWN:
                 {
                     if (pState->is_monospaced) {
-                        pState->cur = KEYS_moveDownMono(pState->cur, pState->head, &pState->curDt);
+                        pState->cur = KEYS_moveDownMono(pState->cur, pState->head, &pState->curDt, &line_update);
                     }
+                    break;
                 }
+                default:
+                //If cursor goes offscreen
+                if ( pState->curAtLine + line_update < pState->scroll_info.nPos || pState->curAtLine + line_update > pState->scroll_info.nPos + pState->scroll_info.nPage) {
+                    pState->scroll_info.nPos = pState->curAtLine + line_update < pState->scroll_info.nPos ? pState->curAtLine + line_update : pState->curAtLine + line_update - pState->scroll_info.nPage + 1;
+                    pState->scroll_info.fMask = SIF_POS;
+                    SetScrollInfo(hwnd, SB_VERT, &pState->scroll_info, 1);
+                }
+                return 0;
             }
-            int lines = LLCHAR_countLinesTill(pState->head, pState->cur, pState->font_max_width, pState->xClient - 15);
-            if (lines != pState->scroll_info.nMax + 1){
-                pState->scroll_info.nMax = lines - 1;
-                pState->scroll_info.nPos = lines - 1;
-                pState->scroll_info.fMask = SIF_RANGE | SIF_PAGE | SIF_POS;
+            
+            //If cursor goes offscreen
+            if ( pState->curAtLine + line_update < pState->scroll_info.nPos || pState->curAtLine + line_update > pState->scroll_info.nPos + pState->scroll_info.nPage) {
+                pState->scroll_info.nPos = pState->curAtLine + line_update < pState->scroll_info.nPos ? pState->curAtLine + line_update : pState->curAtLine + line_update - pState->scroll_info.nPage + 1;
+                pState->scroll_info.fMask = SIF_POS;
                 SetScrollInfo(hwnd, SB_VERT, &pState->scroll_info, 1);
             }
-    
+            
             KillTimer(hwnd, 1);
             pState->cursor_active = 1;
             SetTimer(hwnd, 1, GetCaretBlinkTime(), 0);
+            InvalidateRect(hwnd, NULL, 0);
+            return 0;
+        }
+        case WM_MOUSEWHEEL:
+        {
+            short units = (short)HIWORD(wParam) / WHEEL_DELTA * 3;   
+            pState->scroll_info.nPos -= units;
+            pState->scroll_info.fMask = SIF_POS;
+            SetScrollInfo(hwnd, SB_VERT, &pState->scroll_info, 1);
             InvalidateRect(hwnd, NULL, 0);
             return 0;
         }
@@ -479,8 +513,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     
     struct StateInfo pState = {0};
     pState.cursor_active = 0;
-    pState.text_max_size = 10;
-    pState.text_size = 9;
     pState.font_size = 30;
     pState.is_monospaced = 1;
     pState.idTimer = -1;
@@ -488,9 +520,17 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     
     pState.head = malloc(sizeof(struct llchar));
     pState.head->ch = 0;
+    pState.head->wrapped = 0;
     pState.head->next = 0;
     pState.head->prev = 0;
-    pState.cur = LLCHAR_addStr("Your\nName",9 , pState.head);
+    if (pCmdLine[0] == 0 || strlen((char*)pCmdLine) > 255){
+        pState.cur = LLCHAR_addStr("Your\nName",9 , pState.head);
+    } else {
+        pState.cur = pState.head;
+        pState.fp = malloc(strlen((char*)pCmdLine)); //is this safe
+        strcpy(pState.fp, (char*)pCmdLine);
+    }
+    
     memset(&pState.scroll_info, 0, sizeof(SCROLLINFO));
     
     //Make 'accelerator' table

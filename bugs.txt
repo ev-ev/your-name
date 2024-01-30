@@ -1,13 +1,19 @@
 Bugs
-[!]More characters on screen = more bad for scroll bar ? -> issue, word wrap not accounted for
-[-]Offscreen cursor
+[??] After pasting in content, LLCHAR_countLinesTill returns less than actual value, resulting in scroll bar issue
+    Can be resolved by typing in a character then backspacing
+    Pointer cur of both situations are same, yet countLinesTill returns same value
+    why?
+    I realized why, its because it hasnt been updated with wrapped chars
+[*] Max chars on line then newline empty line
 
 
 Targets
 [!']Undo
+[+]Mouse clicks
 [+]Make cursor nicer
 [o]Non english support
 
 
-RESOLVED
-[+]Crash when pressing arrow down with no text in line
+RESOLVED [?] = fixed by itself
+[?]Scroll bar does weird things when doing VK_ARROWUP
+[+]Word wrap straight up doesn't work

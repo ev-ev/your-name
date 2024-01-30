@@ -1,6 +1,8 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+#define WORD_WRAP_SYMBOL 13
+
 struct llchar* UTILS_LLCHAR_add(char ch, struct llchar* list){
     if (list->next) {
         struct llchar* oldnext = list->next;
@@ -8,6 +10,7 @@ struct llchar* UTILS_LLCHAR_add(char ch, struct llchar* list){
         if (!list->next)
             return 0;
         list->next->ch = ch;
+        list->next->wrapped = 0;
         list->next->prev = list;
         list->next->next = oldnext;
         oldnext->prev = list->next;
@@ -17,6 +20,7 @@ struct llchar* UTILS_LLCHAR_add(char ch, struct llchar* list){
     if (!list->next)
         return 0;
     list->next->ch = ch;
+    list->next->wrapped = 0;
     list->next->prev = list;
     list->next->next = 0;
     return list->next;
@@ -84,6 +88,8 @@ struct llchar* UTILS_LLCHAR_addStrEx(char* st, size_t sz, struct llchar* list, c
 }
 
 struct llchar* UTILS_LLCHAR_delete(struct llchar* list) {
+    if (list->ch == WORD_WRAP_SYMBOL)
+        list = list->prev;
     struct llchar* prev = list->prev;
     if (prev) { // Don't delete reserved entry
         prev->next = list->next;
@@ -116,30 +122,24 @@ void UTILS_LLCHAR_dumpB(struct llchar* list) {
     printf("\n");
 }
 
-int UTILS_LLCHAR_countLines(struct llchar* head, int font_width, int maxsz) {
+int UTILS_LLCHAR_countLines(struct llchar* head) {
     struct llchar* ptr = head;
     int lines = 1;
-    int linesz = 0;
     while (ptr) {
-        linesz += font_width;
-        if (ptr->ch == '\n' || linesz > maxsz){
+        if (ptr->ch == '\n' || ptr->wrapped){
             lines += 1;
-            linesz = ptr->ch == '\n' ? 0 : 1;
         }
         ptr = ptr->next;
     }
     return lines;
 }
 
-int UTILS_LLCHAR_countLinesTill(struct llchar* head, struct llchar* cur, int font_width, int maxsz) {
+int UTILS_LLCHAR_countLinesTill(struct llchar* head, struct llchar* cur) {
     struct llchar* ptr = head;
     int lines = 1;
-    int linesz = 0;
     while (ptr && ptr != cur) {
-        linesz += font_width;
-        if (ptr->ch == '\n' || linesz > maxsz){
+        if (ptr->ch == '\n' || ptr->wrapped){
             lines += 1;
-            linesz = ptr->ch == '\n' ? 0 : 1;
         }
         ptr = ptr->next;
     }

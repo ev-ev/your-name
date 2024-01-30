@@ -4,7 +4,7 @@
 struct llchar* KEYS_moveStartLine(struct llchar* cur, int* dt){
     struct llchar* ptr = cur;
     int a = 0;
-    while (ptr->prev && ptr->ch != '\n') { //ptr->prev to exclude reserved
+    while (ptr->prev && ptr->ch != '\n' && !ptr->wrapped) { //ptr->prev to exclude reserved
         a += 1;
         ptr = ptr->prev;
     }
@@ -13,7 +13,7 @@ struct llchar* KEYS_moveStartLine(struct llchar* cur, int* dt){
     return ptr;
 }
 
-struct llchar* KEYS_moveUpMono(struct llchar* cur, struct llchar* head, int* lastDt){
+struct llchar* KEYS_moveUpMono(struct llchar* cur, struct llchar* head, int* lastDt, int* line_update){
     struct llchar* ptr = cur;
     int dt = *lastDt;
     if (dt) {
@@ -25,29 +25,32 @@ struct llchar* KEYS_moveUpMono(struct llchar* cur, struct llchar* head, int* las
     
     if (ptr == head) //If we reached the start of the file here, quit
         return ptr;
+        
+    *line_update = -1; // From this point on line cursor is at is confirm updated 
+    
     ptr = ptr->prev; //Otherwise, go to end of previous line
     //Go to start of this line
-    while (ptr->prev && ptr->ch != '\n') {
+    while (ptr->prev && ptr->ch != '\n' && !ptr->wrapped) {
         ptr = ptr->prev;
     }
 
     //Test if dt = 0 then no further action
     //Or if it is a blank line
-    if (!dt || ptr->next->ch == '\n')
+    if (!dt || ptr->next->ch == '\n' || ptr->next->wrapped)
         return ptr;
     ptr = ptr->next; //Avoid the newline character breaking it
     //Increment forward until dt or newline or EOF
     for (int i = 0; i < dt - 1; i++) {
-        if (!ptr->next || ptr->ch == '\n')
+        if (!ptr->next || ptr->ch == '\n' || ptr->wrapped)
             break;
         ptr = ptr->next;
     }
-    if (ptr->ch == '\n') //If its a newline character, need to go back one
+    if (ptr->ch == '\n' || ptr->wrapped) //If its a newline character, need to go back one
         ptr = ptr->prev;
     return ptr;
 }
 
-struct llchar* KEYS_moveDownMono(struct llchar* cur, struct llchar* head, int* lastDt){
+struct llchar* KEYS_moveDownMono(struct llchar* cur, struct llchar* head, int* lastDt, int* line_update){
     struct llchar* ptr = cur;
     int dt = *lastDt;
     if (dt) {
@@ -60,26 +63,28 @@ struct llchar* KEYS_moveDownMono(struct llchar* cur, struct llchar* head, int* l
     if (!ptr->next) //Nothing to do here
         return ptr;
     
+    *line_update = 1; //Line number changed here
+    
     //Go to start of next line 
     ptr = ptr->next;
-    while (ptr->next && ptr->ch != '\n') {
+    while (ptr->next && ptr->ch != '\n' && !ptr->wrapped) {
         ptr = ptr->next;
     }
     
     //Test if dt = 0 then no further action
     //Or if it is a blank line
     //Or if its EOF
-    if (!dt || !ptr->next || ptr->next->ch == '\n'){
+    if (!dt || !ptr->next || ptr->next->ch == '\n' || ptr->next->wrapped){
         return ptr;
     }
     ptr = ptr->next; //Avoid the newline character breaking it
     //Increment forward until dt or newline or EOF
     for (int i = 0; i < dt - 1; i++) {
-        if (!ptr->next || ptr->ch == '\n')
+        if (!ptr->next || ptr->ch == '\n' || ptr->next->wrapped)
             break;
         ptr = ptr->next;
     }
-    if (ptr->ch == '\n') //If its a newline character, need to go back one
+    if (ptr->ch == '\n' || ptr->wrapped) //If its a newline character, need to go back one
         ptr = ptr->prev;
     return ptr;
 }
