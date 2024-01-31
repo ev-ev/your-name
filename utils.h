@@ -1,8 +1,6 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-#define WORD_WRAP_SYMBOL 13
-
 struct llchar* UTILS_LLCHAR_add(char ch, struct llchar* list){
     if (list->next) {
         struct llchar* oldnext = list->next;
@@ -88,8 +86,6 @@ struct llchar* UTILS_LLCHAR_addStrEx(char* st, size_t sz, struct llchar* list, c
 }
 
 struct llchar* UTILS_LLCHAR_delete(struct llchar* list) {
-    if (list->ch == WORD_WRAP_SYMBOL)
-        list = list->prev;
     struct llchar* prev = list->prev;
     if (prev) { // Don't delete reserved entry
         prev->next = list->next;
