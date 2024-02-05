@@ -1,6 +1,6 @@
 Bugs
 [*] Max chars on line then newline empty line
-[!] Does not autoscroll for the first time
+
 
 Targets
 [!']Undo
@@ -9,7 +9,6 @@ Targets
 
 
 RESOLVED [?] = fixed by itself
-[+] Make cursor nicer
-[+] After pasting in content, LLCHAR_countLinesTill returns less than actual value, resulting in scroll bar issue
-[+] Moving cursor down doesnt seem to move screen
-
+[!] Fixed major bug from last release (crash when backspacing last character)
+[+] Does not autoscroll for the first time
+[+] Scrollbar is finally robust and not buggy

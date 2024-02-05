@@ -13,7 +13,7 @@ struct llchar* KEYS_moveStartLine(struct llchar* cur, int* dt){
     return ptr;
 }
 
-struct llchar* KEYS_moveUpMono(struct llchar* cur, struct llchar* head, int* lastDt, int* line_update){
+struct llchar* KEYS_moveUpMono(struct llchar* cur, struct llchar* head, int* lastDt){
     struct llchar* ptr = cur;
     int dt = *lastDt;
     if (dt) {
@@ -26,8 +26,6 @@ struct llchar* KEYS_moveUpMono(struct llchar* cur, struct llchar* head, int* las
     if (ptr == head) //If we reached the start of the file here, quit
         return ptr;
         
-    *line_update = -1; // From this point on line cursor is at is confirm updated 
-    
     ptr = ptr->prev; //Otherwise, go to end of previous line
     //Go to start of this line
     while (ptr->prev && ptr->ch != '\n' && !ptr->wrapped) {
@@ -50,7 +48,7 @@ struct llchar* KEYS_moveUpMono(struct llchar* cur, struct llchar* head, int* las
     return ptr;
 }
 
-struct llchar* KEYS_moveDownMono(struct llchar* cur, struct llchar* head, int* lastDt, int* line_update){
+struct llchar* KEYS_moveDownMono(struct llchar* cur, struct llchar* head, int* lastDt){
     struct llchar* ptr = cur;
     int dt = *lastDt;
     if (dt) {
@@ -62,9 +60,7 @@ struct llchar* KEYS_moveDownMono(struct llchar* cur, struct llchar* head, int* l
     
     if (!ptr->next) //Nothing to do here
         return ptr;
-    
-    *line_update = 1; //Line number changed here
-    
+
     //Go to start of next line 
     ptr = ptr->next;
     while (ptr->next && ptr->ch != '\n' && !ptr->wrapped) {
