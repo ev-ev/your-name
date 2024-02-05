@@ -538,7 +538,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     pState.head->next = 0;
     pState.head->prev = 0;
     if (pCmdLine[0] == 0 || strlen((char*)pCmdLine) > 255){
-        pState.cur = LLCHAR_addStr("Your\nName\n\n\n\n\n\n\n\n\n\nI like cats", 30, pState.head);
+        pState.cur = LLCHAR_addStr("Your\nName", 9, pState.head);
     } else {
         pState.cur = pState.head;
         pState.fp = malloc(strlen((char*)pCmdLine)); //is this safe
