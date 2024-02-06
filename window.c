@@ -14,6 +14,9 @@ struct llchar {
     struct llchar* next;
 };
 
+#include "paint.h"
+#include "size.h"
+
 #include "utils.h"
 #include "keys.h" // Keys.h depends on llchar
 
@@ -125,158 +128,26 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         
         case WM_PAINT:
         {
-            //CLKS()
-            //Decompose pState into nearby cache
-            int font_height = pState->font_height;
-            int font_width = pState->font_av_width;
-            int cursor_active = pState->cursor_active;
-            struct llchar* head = pState->head;
-            struct llchar* cur = pState->cur;
-            char* line = pState->line;
-            int line_alloc = pState->line_alloc;
-            
-            HDC hdcM = pState->hdcM;
-            
-            
-            PAINTSTRUCT ps;
-            
-            HDC hdc = BeginPaint(hwnd, &ps);
-            HDC hbmOld = SelectObject(hdcM, pState->hbmM);
-            
-            LABEL_RERENDER:
-            int scrollY = pState->scrollY;
-            int rerender = 0;
-            
-            FillRect(hdcM, &ps.rcPaint, (HBRUSH) (COLOR_WINDOW+1));
-            
-            
-            HFONT hOldFont = (HFONT)SelectObject(hdcM, pState->hNewFont);
-            SIZE sz; //For GetTextExtent
-            
-            //Divide available space into rows for drawing text.
-            RECT rect;
-            GetClientRect(hwnd, &rect);
-            
-            
-            
-            int max_chars = (rect.bottom - rect.top) / pState->font_height;
-            size_t first = rect.top / font_height;
-            //size_t last = rect.bottom / font_height;
-            size_t current = first - scrollY;
-            
-            if (!line){
-                pState->line_alloc = (rect.right - rect.left)/(font_width) + 10;
-                line_alloc = pState->line_alloc;
-                pState->line = malloc(pState->line_alloc);
-                line = pState->line;
-            }
-            
-            int lpWideSz = pState->line_alloc * 6;
-            LPWSTR lpWideCharStr = malloc(lpWideSz);
-            size_t line_sz = 0;
-            struct llchar* ptr = head->next; // First is reserved 
-            
-            while (ptr){
-                if (ptr->ch != '\n'){
-                    if (line_sz + 1 > line_alloc) {
-                        pState->line = realloc(pState->line, line_alloc * 2);
-                        pState->line_alloc *= 2;
-                        line = pState->line;
-                        line_alloc = pState->line_alloc;
-                        
-                        lpWideCharStr = realloc(lpWideCharStr, line_alloc * 6);
-                    }
-                    line[line_sz] = ptr->ch;
-                    line_sz += 1;
-                }
-                //Prepare line and get its size
-                lpWideSz = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, line, line_sz, lpWideCharStr, line_alloc * 6);
-                GetTextExtentPoint32(hdcM, lpWideCharStr, lpWideSz, &sz);
-                
-                if (ptr == cur){ //If its a newline, pointer at the start, otherwise at the end of line           
-                    if (ptr->ch == '\n') {
-                        pState->curX = rect.left;
-                        pState->curY = current * font_height + font_height;
-                        pState->curAtLine = current + scrollY + 1;
-                    } else {
-                        pState->curX = rect.left + sz.cx;
-                        pState->curY = current * font_height;
-                        pState->curAtLine = current + scrollY;
-                    }
-                    //Check if cursor is outside camera view. If it is, oops time to rerender the scene
-                    if (pState->requireCursorUpdate && (pState->curAtLine < scrollY || pState->curAtLine > scrollY + max_chars - 1)) {
-                        pState->requireCursorUpdate = 0;
-                        pState->scrollY = pState->curAtLine < scrollY ? pState->curAtLine : pState->curAtLine - max_chars + 1;
-                        rerender = 1;
-                        //InvalidateRect(hwnd, NULL, 0);
-                        break;
-                    }
-                }
-                ptr->wrapped = sz.cx > (rect.right - rect.left - 15) || ptr->ch == '\n';
-                if (ptr->wrapped || !ptr->next || sz.cx > (rect.right - rect.left - 15)) { // 15 is right margin
-                    //Check if in rendersquare then render
-                    if ((current) * font_height + font_height >= ps.rcPaint.top && (current) * font_height <= ps.rcPaint.bottom){
-                        TabbedTextOut(hdcM, rect.left, (current) * font_height, lpWideCharStr, line_sz, 0, 0, 0);  
-                    }
-                    
-                    line_sz = 0;
-                    current += 1;
-                    //if (current > last) //Run out of rows
-                    //    break;
-                }
-                if (!ptr->next){
-                    break;
-                }
-                ptr = ptr->next;
-            }
-            free(lpWideCharStr);
-            SelectObject(hdcM, hOldFont);
-            
-            if (ptr)
-                pState->totalLines = current + scrollY + ptr->wrapped;
-            
-            if (cur == head) { //If its inside the 'reserved' first char, draw at beginng
-                pState->curX = rect.left;
-                pState->curY = first*font_height; //Duplicate code to check regarding cursor offscreen since it wont get caught in the while loop
-                if (pState->requireCursorUpdate && (0 < scrollY || 0 > scrollY + max_chars)) {
-                    pState->requireCursorUpdate = 0;
-                    pState->scrollY = 0;
-                    rerender = 1;
-                    //InvalidateRect(hwnd, NULL, 0);
-                }
-            }
-            
-            if (rerender) {
-                goto LABEL_RERENDER;
-            }
-            
-            //Now that we know current state of document, update scrollbar
-            SCROLL_setScrollInfoPos(&pState->scroll_info, scrollY);
-            SCROLL_setScrollInfoPageSize(&pState->scroll_info, max_chars);
-            SCROLL_setScrollInfoRange(&pState->scroll_info, 0, pState->totalLines + max_chars - 2);
-            SCROLL_commitScrollInfo(hwnd, SB_VERT, &pState->scroll_info, 1);
-            
-            //Draw cursor
-            if (cursor_active){
-                HPEN hPenOld = SelectObject(hdcM, pState->hPenNew);
-                MoveToEx(hdcM, pState->curX, pState->curY, 0);
-                LineTo(hdcM, pState->curX, pState->curY + font_height);
-                SelectObject(hdcM, hPenOld);
-            }
-            
-            
-            BitBlt(hdc, rect.left, rect.top, rect.right-rect.left, rect.bottom-rect.top, hdcM, 0, 0, SRCCOPY);
-            
-            SelectObject(hdcM, hbmOld);
-            
-            EndPaint(hwnd, &ps);
-            
-            
-            //Max perf on my machine - 3ms
-            //CLKE()
-            return 0;
+            return PAINT_renderMainWindow( hwnd,
+                                    pState->font_height,
+                                    pState->font_av_width,
+                                    pState->cursor_active,
+                                    pState->head,
+                                    pState->cur,
+                                    pState->hdcM,
+                                    pState->hbmM,
+                                    pState->hNewFont,
+                                    pState->hPenNew,
+                                    pState->scroll_info,
+                                    &pState->scrollY,
+                                    &pState->line_alloc,
+                                    &pState->line,
+                                    &pState->curX,
+                                    &pState->curY,
+                                    &pState->curAtLine,
+                                    &pState->requireCursorUpdate,
+                                    &pState->totalLines);
         }
-        
         case WM_TIMER:
         {
             pState->cursor_active = !pState->cursor_active;
@@ -296,44 +167,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         
         case WM_SIZE:
         {
-            switch (wParam)
-            {
-                case SIZE_MINIMIZED:
-                {
-                    KillTimer(hwnd, 1);
-                    pState->idTimer = -1;
-                    break;
-                }
-                case SIZE_RESTORED:
-                case SIZE_MAXIMIZED:
-                {
-                    if (pState->idTimer == -1) {
-                        SetTimer(hwnd, pState->idTimer = 1, GetCaretBlinkTime(), 0);
-                    }  
-                    
-                    pState->drawing_width = LOWORD(lParam);
-                    
-                    //Re-create second buffer
-                    DeleteObject(pState->hdcM);
-                    DeleteObject(pState->hbmM);
-                    PAINTSTRUCT ps;
-                    HDC hdc = BeginPaint(hwnd, &ps);
-                    pState->hdcM = CreateCompatibleDC(hdc);
-                    pState->hbmM = CreateCompatibleBitmap(hdc, LOWORD(lParam), HIWORD(lParam));
-                    EndPaint(hwnd, &ps);
-                    
-                    //Set vertical scrolling range and page size
-                    //SCROLL_setScrollInfoRange(&pState->scroll_info, 0, LINES - 1);
-                    //SCROLL_setScrollInfoPageSize(&pState->scroll_info, HIWORD(lParam) / pState->font_height);
-                    //SCROLL_commitScrollInfo(hwnd, SB_VERT, &pState->scroll_info, 1);
-                    
-                    
-                    InvalidateRect(hwnd, NULL, 0);
-                    break;
-                }
-            }
-            
-            return 0;
+            return SIZE_resizeMainWindow(wParam, lParam, hwnd,
+                                         &pState->idTimer, &pState->drawing_width, &pState->hdcM, &pState->hbmM);
         }
         case WM_KILLFOCUS:
         {
