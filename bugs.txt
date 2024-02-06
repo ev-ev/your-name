@@ -1,14 +1,13 @@
 Bugs
 [*] Max chars on line then newline empty line
+[-] After resizing need to scroll to return camera to proper position
 
 
 Targets
 [!']Undo
 [+]Mouse clicks
+[o]Implement all TEXTMETRIC infos
 [o]Non english support
 
 
 RESOLVED [?] = fixed by itself
-[!] Fixed major bug from last release (crash when backspacing last character)
-[+] Does not autoscroll for the first time
-[+] Scrollbar is finally robust and not buggy
