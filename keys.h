@@ -29,7 +29,7 @@ struct llchar* KEYS_moveStartLine(struct llchar* cur, int* dt){
     return ptr;
 }
 
-struct llchar* KEYS_moveUpMono(struct llchar* cur, struct llchar* head, int* lastDt){
+struct llchar* KEYS_moveUpMono(struct llchar* cur, int* lastDt){
     struct llchar* ptr = cur;
     int dt = *lastDt;
     if (dt) {
@@ -39,7 +39,7 @@ struct llchar* KEYS_moveUpMono(struct llchar* cur, struct llchar* head, int* las
         *lastDt = dt;
     }
     
-    if (ptr == head) //If we reached the start of the file here, quit
+    if (ptr->ch == LLCHAR_HEAD_RESERVED_CHAR) //If we reached the start of the file here, quit
         return ptr;
         
     ptr = ptr->prev; //Otherwise, go to end of previous line
@@ -64,7 +64,7 @@ struct llchar* KEYS_moveUpMono(struct llchar* cur, struct llchar* head, int* las
     return ptr;
 }
 
-struct llchar* KEYS_moveUpVar(struct llchar* cur, struct llchar* head, int* lastDt, HDC hdc, HFONT font){
+struct llchar* KEYS_moveUpVar(struct llchar* cur, int* lastDt, HDC hdc, HFONT font){
     struct llchar* ptr = cur;
     int dt = *lastDt;
     
@@ -80,7 +80,7 @@ struct llchar* KEYS_moveUpVar(struct llchar* cur, struct llchar* head, int* last
         *lastDt = dt;
     }
     
-    if (ptr == head){ //If we reached the start of the file here, quit
+    if (ptr->ch == LLCHAR_HEAD_RESERVED_CHAR){ //If we reached the start of the file here, quit
         SelectObject(hdc, hOldFont);
         return ptr;
     }
@@ -127,7 +127,7 @@ struct llchar* KEYS_moveUpVar(struct llchar* cur, struct llchar* head, int* last
     return ptr;
 }
 
-struct llchar* KEYS_moveDownMono(struct llchar* cur, struct llchar* head, int* lastDt){
+struct llchar* KEYS_moveDownMono(struct llchar* cur, int* lastDt){
     struct llchar* ptr = cur;
     int dt = *lastDt;
     if (dt) {
@@ -164,7 +164,7 @@ struct llchar* KEYS_moveDownMono(struct llchar* cur, struct llchar* head, int* l
     return ptr;
 }
 
-struct llchar* KEYS_moveDownVar(struct llchar* cur, struct llchar* head, int* lastDt, HDC hdc, HFONT font){
+struct llchar* KEYS_moveDownVar(struct llchar* cur, int* lastDt, HDC hdc, HFONT font){
     struct llchar* ptr = cur;
     int dt = *lastDt;
     
@@ -223,34 +223,37 @@ struct llchar* KEYS_moveDownVar(struct llchar* cur, struct llchar* head, int* la
     return ptr;
 }
 
-struct llchar* KEYS_accel_ctrl_v(struct llchar* cur) {
-    if (!OpenClipboard(0)) {
-        printf("Error opening clipboard");
-        return 0;
+struct llchar* KEYS_handleCursorMove(WPARAM wParam, struct llchar* cur, HDC dc, HFONT hNewFont, int* curDt){
+    switch (wParam)
+    {
+        case VK_LEFT:
+        {
+            *curDt = 0;
+            return cur->prev ? cur->prev : cur;
+        }
+        case VK_RIGHT:
+        {
+            *curDt = 0;
+            return cur->next ? cur->next : cur;
+        }
+        case VK_UP:
+        {
+            if (dc) {
+                return KEYS_moveUpVar(cur, curDt, dc, hNewFont);
+            } else {
+                return KEYS_moveUpMono(cur, curDt);
+            }
+        }
+        case VK_DOWN:
+        {
+            if (dc) {
+                return KEYS_moveDownVar(cur, curDt, dc, hNewFont);
+            } else {
+                return KEYS_moveDownMono(cur, curDt);
+            }
+        }
     }
-    
-    HANDLE clip = GetClipboardData(CF_TEXT);
-    if (!clip) {
-        printf("No clipboard data object");
-        CloseClipboard();
-        return 0;
-    }
-    char* text = (char*) GlobalLock(clip);
-    
-    if (!text) {
-        printf("No clipboard data");
-        GlobalUnlock(clip);
-        CloseClipboard();
-        return 0;
-    }
-    
-    struct llchar* ptr = LLCHAR_addStrEx(text, strlen(text), cur, '\r');
-    
-    GlobalUnlock(clip);
-    
-    CloseClipboard();
-    
-    return ptr;
+    return cur;
 }
 
 #endif

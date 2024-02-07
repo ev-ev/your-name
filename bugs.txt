@@ -2,10 +2,14 @@ Bugs
 [*] Max chars on line then newline empty line
 [-] After resizing need to scroll to return camera to proper position
 
+Selected Target (if any)
+>Undo
+->Wrap functions affecting input and cursor movement.
 
 Targets
+[!']mouse support
+[!']text selection support
 [!']Undo
-[+]Mouse clicks
 [o]Implement all TEXTMETRIC infos
 [o]Non english support
 

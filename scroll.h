@@ -1,6 +1,8 @@
 #ifndef SCROLL_H
 #define SCROLL_H
 
+//I try to provide methods here to not directly change scroll_info as much as possible
+
 void SCROLL_initScrollInfo(SCROLLINFO* scroll_info) {
     scroll_info->cbSize = sizeof(SCROLLINFO);
     scroll_info->fMask = 0;

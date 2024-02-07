@@ -1,6 +1,14 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+int UTILS_countCharInstanceInString(char* in, int insz, char ch) {
+    int count = 0;
+    for (int i = 0; i < insz; i++){
+        count += in[i] == ch ? 1 : 0;
+    }
+    return count;
+}
+
 struct llchar* UTILS_LLCHAR_add(char ch, struct llchar* list){
     if (list->next) {
         struct llchar* oldnext = list->next;
@@ -92,7 +100,10 @@ struct llchar* UTILS_LLCHAR_delete(struct llchar* list) {
         if (list->next)
             list->next->prev = prev;
         
-        free(list);
+        printf("[-] Info, free(%p)\n",list);
+        
+        //free(list); WARNING !! WARNING !! MEMORY LEAK??? 
+        //But not really, since we can't free them in case its undo-ed
         return prev;
     }
     list->ch = 0;

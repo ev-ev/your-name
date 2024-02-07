@@ -5,6 +5,9 @@
 //Mutables on bottom
 int PAINT_renderMainWindow(HWND hwnd, int font_height, int font_width, int cursor_active, struct llchar* head, struct llchar* cur, HDC hdcM, HBITMAP hbmM, HFONT hNewFont, HPEN hPenNew, SCROLLINFO scroll_info,
                            int* state_scrollY, int* state_line_alloc, char** state_line, int* state_curX, int* state_curY, size_t* state_curAtLine, int* state_requireCursorUpdate, size_t* state_totalLines){
+    
+    //UTILS_LLCHAR_dumpA(head);
+    
     PAINTSTRUCT ps;
     HDC hdc = BeginPaint(hwnd, &ps);
     HDC hbmOld = SelectObject(hdcM, hbmM);

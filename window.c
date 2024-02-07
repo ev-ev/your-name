@@ -13,7 +13,9 @@ struct llchar {
     struct llchar* prev;
     struct llchar* next;
 };
+#define LLCHAR_HEAD_RESERVED_CHAR 0
 
+#include "atomic.h"
 #include "paint.h"
 #include "size.h"
 
@@ -52,6 +54,8 @@ struct StateInfo {
     int drawing_width; //Max drawing size for text
     
     int idTimer; //Variable for interacting with carret timer thru winapi
+    
+    struct ATOMIC_internal_history_stack* history_stack;
     
     HDC hdcM;
     HBITMAP hbmM;
@@ -190,44 +194,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         }
         case WM_CHAR:
         {
-            switch (wParam)
-            {
-                case '\b': //Backspace
-                {
-                    pState->cur = LLCHAR_delete(pState->cur);
-                    break;
-                }
-                case 0x1B: //Esc key
-                {
-                    break;
-                }
-                case '\t':
-                {
-                    struct llchar* ptr = LLCHAR_addStr("    ", 4, pState->cur);
-                    if (!ptr){
-                        printf("Out of memory !");
-                        break;
-                    }
-                    pState->cur = ptr;
-                    break;
-                }
-                case '\r': //New line
-                wParam = '\n';
-                // fall through
-                default:
-                {
-                    if (HIBYTE(GetKeyState(VK_CONTROL))) { //Control symbols fuck up input
-                        break;
-                    }
-                    struct llchar* ptr = LLCHAR_add(wParam, pState->cur);
-                    if (!ptr){
-                        printf("Out of memory !");
-                        break;
-                    }
-                    pState->cur = ptr;
-                    
-                }
-            }
+            pState->cur = ATOMIC_handleInputCharacter(&pState->history_stack, wParam, pState->cur, 0);
             pState->curDt = 0; //Request a refresh of current cursor in line position
             pState->requireCursorUpdate = 1;
             
@@ -243,7 +210,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             switch (LOBYTE(wParam)) {
                 case 'V':
                 {
-                    struct llchar* ptr = KEYS_accel_ctrl_v(pState->cur);
+                    struct llchar* ptr = ATOMIC_handlePastedData(&pState->history_stack, pState->cur);
                     if (ptr){
                         pState->cur = ptr;
                     }
@@ -251,6 +218,21 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                     pState->requireCursorUpdate = 1;
                     InvalidateRect(hwnd, NULL, 0);
                     break;
+                }
+                case 'Z':
+                {
+                    HDC dc = 0;
+                    if (!pState->is_monospaced){
+                        dc = GetWindowDC(hwnd);
+                    }
+                    pState->cur = ATOMIC_popElemFromAtomicStack(&pState->history_stack, pState->cur, dc, pState->hNewFont, &pState->curDt);
+                    pState->requireCursorUpdate = 1;
+                    
+                    KillTimer(hwnd, 1);
+                    pState->cursor_active = 1;
+                    SetTimer(hwnd, 1, GetCaretBlinkTime(), 0);
+                    
+                    InvalidateRect(hwnd, NULL, 0);
                 }
             }
             
@@ -261,44 +243,18 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             switch (wParam)
             {
                 case VK_LEFT:
-                {
-                    if (pState->cur->prev){
-                        pState->cur = pState->cur->prev;
-                    }
-                    pState->curDt = 0; //Reset the cursor position so when up key is pressed its reset
-                    break;
-                }
+                //fall through
                 case VK_RIGHT:
-                {
-                    if (pState->cur->next){
-                        pState->cur = pState->cur->next;
-                    }
-                    pState->curDt = 0;
-                    break;
-                }
+                //fall through
                 case VK_UP:
-                {
-                    if (pState->is_monospaced) {
-                        pState->cur = KEYS_moveUpMono(pState->cur, pState->head, &pState->curDt);
-                    } else {
-                        HDC dc = GetWindowDC(hwnd);
-                        pState->cur = KEYS_moveUpVar(pState->cur, pState->head, &pState->curDt, dc, pState->hNewFont);
-                        //ReleaseDC(hwnd,dc);
-                    }
-                    break;
-                }
+                //fall through
                 case VK_DOWN:
-                {
-                    if (pState->is_monospaced) {
-                        pState->cur = KEYS_moveDownMono(pState->cur, pState->head, &pState->curDt);
-                    } else {
-                        HDC dc = GetWindowDC(hwnd);
-                        pState-> cur = KEYS_moveDownVar(pState->cur, pState->head, &pState->curDt, dc, pState->hNewFont);
-                    }
+                    HDC dc = 0;
+                    if (!pState->is_monospaced)
+                        dc = GetWindowDC(hwnd);
+                    pState->cur = KEYS_handleCursorMove(wParam, pState->cur, dc, pState->hNewFont, &pState->curDt);
                     break;
-                }
                 default:
-                
                 return 0;
             }
             pState->requireCursorUpdate = 1;
@@ -406,6 +362,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     pState.is_monospaced = 0;
     pState.idTimer = -1;
     
+    pState.history_stack = ATOMIC_createAtomicStack();
     
     pState.head = malloc(sizeof(struct llchar));
     pState.head->ch = 0;
