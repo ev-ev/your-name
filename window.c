@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <windows.h>
+#include <windowsx.h>
 #include <time.h>
 
 #include "scroll.h"
@@ -15,6 +16,7 @@ struct llchar {
 };
 #define LLCHAR_HEAD_RESERVED_CHAR 0
 
+#include "mouse.h"
 #include "atomic.h"
 #include "paint.h"
 #include "size.h"
@@ -263,6 +265,20 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             pState->cursor_active = 1;
             SetTimer(hwnd, 1, GetCaretBlinkTime(), 0);
             InvalidateRect(hwnd, NULL, 0);
+            return 0;
+        }
+        
+        case WM_LBUTTONDOWN:
+        {
+            if (wParam == MK_LBUTTON) {
+                pState->cur = MOUSE_processMouseDown(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), pState->font_height, pState->scrollY, pState->head, hwnd, pState->hNewFont, &pState->line_alloc, &pState->line);
+                pState->requireCursorUpdate = 1;
+                
+                KillTimer(hwnd, 1);
+                pState->cursor_active = 1;
+                SetTimer(hwnd, 1, GetCaretBlinkTime(), 0);
+                InvalidateRect(hwnd, NULL, 0);
+            }
             return 0;
         }
         case WM_MOUSEWHEEL:

@@ -158,7 +158,7 @@ struct llchar* ATOMIC_popElemFromAtomicStack(struct ATOMIC_internal_history_stac
         }
         
         if (page.action == ATOMIC_CHAR_REMOVE) {
-            printf("used ptr: %p\n",page.ptr);
+            //printf("used ptr: %p\n",page.ptr);
             cur = UTILS_LLCHAR_insert(page.cur, page.ptr);
             //return ATOMIC_handleInputCharacter(stack_ptr, page.data, cur, 1);
         }

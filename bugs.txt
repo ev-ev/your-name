@@ -3,13 +3,12 @@ Bugs
 [-] After resizing need to scroll to return camera to proper position
 
 Selected Target (if any)
->Undo
-->Wrap functions affecting input and cursor movement.
+->Mouse support
 
 Targets
 [!']mouse support
 [!']text selection support
-[!']Undo
+[/]Redo
 [o]Implement all TEXTMETRIC infos
 [o]Non english support
 

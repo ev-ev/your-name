@@ -117,7 +117,7 @@ struct llchar* UTILS_LLCHAR_clear(struct llchar* list) {
         if (list->next)
             list->next->prev = prev;
         
-        printf("[-] Info, clear(%p)\n",list);
+        //printf("[-] Info, clear(%p)\n",list);
         
         return prev;
     }
@@ -132,7 +132,7 @@ struct llchar* UTILS_LLCHAR_delete(struct llchar* list) {
         if (list->next)
             list->next->prev = prev;
         
-        printf("[-] Info, free(%p)\n",list);
+        //printf("[-] Info, free(%p)\n",list);
         
         free(list);
         return prev;
@@ -158,6 +158,16 @@ void UTILS_LLCHAR_dumpB(struct llchar* list) {
         printf("%d ",ptr->ch);
     }
     printf("\n");
+}
+
+struct llchar* UTILS_LLCHAR_moveLines(struct llchar* cur, int lines) {
+    struct llchar* ptr = cur;
+    while (ptr->next && lines > 0) {
+        ptr = ptr->next;
+        lines -= ptr->wrapped; //if ptr->wrapped, remove one from lines, eventually will move lines amount
+        
+    }
+    return ptr;
 }
 
 int UTILS_LLCHAR_countLines(struct llchar* head) {
@@ -192,6 +202,7 @@ int UTILS_LLCHAR_countLinesTill(struct llchar* head, struct llchar* cur) {
 #define LLCHAR_clear UTILS_LLCHAR_clear
 #define LLCHAR_dumpA UTILS_LLCHAR_dumpA
 #define LLCHAR_dumpB UTILS_LLCHAR_dumpB
+#define LLCHAR_moveLines UTILS_LLCHAR_moveLines
 #define LLCHAR_countLines UTILS_LLCHAR_countLines
 #define LLCHAR_countLinesTill UTILS_LLCHAR_countLinesTill
 #endif
