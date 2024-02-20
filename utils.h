@@ -141,6 +141,24 @@ struct llchar* UTILS_LLCHAR_delete(struct llchar* list) {
     return list;
 }
 
+void UTILS_LLCHAR_deleteAll1(struct llchar* head) {
+    struct llchar* ptr = head;
+    while (ptr->next){
+        ptr = ptr->next;
+        ptr->prev->ch = 0;
+    }
+    ptr->ch = 0;
+}
+
+void UTILS_LLCHAR_deleteAll2(struct llchar* head) {
+    struct llchar* ptr = head;
+    while (ptr->next){
+        ptr = ptr->next;
+        free(ptr->prev);
+    }
+    free(ptr);
+}
+
 void UTILS_LLCHAR_dumpA(struct llchar* list) {
     struct llchar* ptr = list;
     printf("%c",ptr->ch);
@@ -199,6 +217,8 @@ int UTILS_LLCHAR_countLinesTill(struct llchar* head, struct llchar* cur) {
 #define LLCHAR_addStr UTILS_LLCHAR_addStr
 #define LLCHAR_addStrEx UTILS_LLCHAR_addStrEx
 #define LLCHAR_delete UTILS_LLCHAR_delete
+#define LLCHAR_deleteAll1 UTILS_LLCHAR_deleteAll1
+#define LLCHAR_deleteAll2 UTILS_LLCHAR_deleteAll2
 #define LLCHAR_clear UTILS_LLCHAR_clear
 #define LLCHAR_dumpA UTILS_LLCHAR_dumpA
 #define LLCHAR_dumpB UTILS_LLCHAR_dumpB

@@ -2,14 +2,15 @@
 #define MOUSE_H
 
 #include "utils.h"
+#include "paint.h"
 
-struct llchar* MOUSE_processMouseDown(int x, int y, int font_height, int scrollY, struct llchar* head, HWND hwnd, HFONT hNewFont, int* state_line_alloc, char** state_line) {
+struct llchar* MOUSE_processMouseDownInClientArea(int x, int y, int font_height, int scrollY, struct llchar* head, HWND hwnd, HFONT hNewFont, int* state_line_alloc, char** state_line) {
     PAINTSTRUCT ps;
     HDC hdc = BeginPaint(hwnd, &ps);
     HFONT hOldFont = (HFONT)SelectObject(hdc, hNewFont);
     
     struct llchar* ptr;
-    int line_num = y / font_height + scrollY;
+    int line_num = (y - PAINT_MENU_RESERVED_SPACE) / font_height + scrollY;
     ptr = LLCHAR_moveLines(head, line_num);
     
     char* line = *state_line;
@@ -50,6 +51,52 @@ struct llchar* MOUSE_processMouseDown(int x, int y, int font_height, int scrollY
     EndPaint(hwnd, &ps);
     
     return ptr;
+}
+
+int MOUSE_processMouseDownInMenu(int x, int y, struct StateInfo* pState){
+    switch (x/24)
+    {
+        case 0:
+        {
+            //First free all data
+            LLCHAR_deleteAll1(pState->head);
+            ATOMIC_deleteAtomicStack(pState->history_stack);
+            LLCHAR_deleteAll2(pState->head);
+            free(pState->line);
+            pState->line = 0;
+            
+            //Reset all values
+            pState->head = malloc(sizeof(struct llchar));
+            pState->head->ch = 0;
+            pState->head->wrapped = 0;
+            pState->head->next = 0;
+            pState->head->prev = 0;
+            pState->cur = pState->head;
+            
+            pState->history_stack = ATOMIC_createAtomicStack();
+            return 1;
+        }
+        case 1:
+        {
+            printf("Open\n");
+            break;
+        }
+        case 2:
+        {
+            printf("Save\n");
+            break;
+        }
+        case 3:
+        {
+            printf("Close\n");
+            break;
+        }
+    }
+    return 0;
+}
+
+void MOUSE_processMouseOverMenu(int x, int y) {
+    //printf("Hover:%d\n",x/24);
 }
 
 #endif

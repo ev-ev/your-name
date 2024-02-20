@@ -14,9 +14,10 @@ struct llchar {
     struct llchar* prev;
     struct llchar* next;
 };
-#define LLCHAR_HEAD_RESERVED_CHAR 0
 
-#include "mouse.h"
+#define LLCHAR_HEAD_RESERVED_CHAR 0
+#define ICON_AMOUNT 4
+
 #include "atomic.h"
 #include "paint.h"
 #include "size.h"
@@ -63,8 +64,11 @@ struct StateInfo {
     HBITMAP hbmM;
     HPEN hPenNew;
     HFONT hNewFont;
+    HICON iconList[ICON_AMOUNT];
     SCROLLINFO scroll_info;
 };
+
+#include "mouse.h"
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
     struct StateInfo* pState = (struct StateInfo*) GetWindowLongPtr(hwnd, GWLP_USERDATA);
@@ -91,9 +95,6 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             pState->hdcM = CreateCompatibleDC(hdc);
             pState->hbmM = CreateCompatibleBitmap(hdc, rc.right - rc.left, rc.bottom - rc.top);
             EndPaint(hwnd, &ps);
-            
-            SetBkMode(pState->hdcM, TRANSPARENT); //Render text with transparent background
-            SetMapMode(pState->hdcM, MM_TEXT); //Ensure map mode is pixel to pixel
             
             //Create brush for carret
             pState->hPenNew = CreatePen(PS_SOLID, 1, RGB(0,0,0));
@@ -122,6 +123,20 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             //Initialize scrollbar
             SCROLL_initScrollInfo(&pState->scroll_info);
             //:3
+            
+            //Load icons
+            SHSTOCKICONINFO sii;
+            sii.cbSize = sizeof(sii);
+            
+            SHGetStockIconInfo(SIID_DOCASSOC, SHGSI_ICON, &sii);
+            pState->iconList[0] = sii.hIcon;
+            SHGetStockIconInfo(SIID_FOLDEROPEN, SHGSI_ICON, &sii);
+            pState->iconList[1] = sii.hIcon;
+            SHGetStockIconInfo(SIID_DRIVE525, SHGSI_ICON, &sii);
+            pState->iconList[2] = sii.hIcon;
+            SHGetStockIconInfo(SIID_ERROR, SHGSI_ICON, &sii);
+            pState->iconList[3] = sii.hIcon;
+            
             return 0;
         }
         
@@ -144,6 +159,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                                     pState->hbmM,
                                     pState->hNewFont,
                                     pState->hPenNew,
+                                    pState->iconList,
                                     pState->scroll_info,
                                     &pState->scrollY,
                                     &pState->line_alloc,
@@ -271,14 +287,28 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         case WM_LBUTTONDOWN:
         {
             if (wParam == MK_LBUTTON) {
-                pState->cur = MOUSE_processMouseDown(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), pState->font_height, pState->scrollY, pState->head, hwnd, pState->hNewFont, &pState->line_alloc, &pState->line);
-                pState->requireCursorUpdate = 1;
-                
-                KillTimer(hwnd, 1);
-                pState->cursor_active = 1;
-                SetTimer(hwnd, 1, GetCaretBlinkTime(), 0);
-                InvalidateRect(hwnd, NULL, 0);
+                if (GET_Y_LPARAM(lParam) > PAINT_MENU_RESERVED_SPACE){
+                    pState->cur = MOUSE_processMouseDownInClientArea(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), pState->font_height, pState->scrollY, pState->head, hwnd, pState->hNewFont, &pState->line_alloc, &pState->line);
+                    pState->requireCursorUpdate = 1;
+                    
+                    KillTimer(hwnd, 1);
+                    pState->cursor_active = 1;
+                    SetTimer(hwnd, 1, GetCaretBlinkTime(), 0);
+                    InvalidateRect(hwnd, NULL, 0);
+                } else { //we are clicking on the menu
+                    if (MOUSE_processMouseDownInMenu(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), pState)){
+                        InvalidateRect(hwnd, NULL, 0);
+                    }
+                }
             }
+            return 0;
+        }
+        case WM_MOUSEMOVE:
+        {
+            if (wParam != MK_LBUTTON && GET_Y_LPARAM(lParam) <= PAINT_MENU_RESERVED_SPACE){
+                MOUSE_processMouseOverMenu(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+            }
+            
             return 0;
         }
         case WM_MOUSEWHEEL:
@@ -293,12 +323,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             } else {
                 pState->scrollY += units;
             }
-            //printf("%d\n",pState->scrollY);
-            //SCROLL_setScrollInfoPos(&pState->scroll_info, pState->curAtLine + units);
-            //SCROLL_commitScrollInfo(hwnd, SB_VERT, &pState->scroll_info, 1);
-            ScrollWindowEx(hwnd, 0, -pState->font_height * units, 0, 0, 0, 0, SW_INVALIDATE);
-            //UpdateWindow(hwnd);
-            //InvalidateRect(hwnd, NULL, 0);
+            RECT rc;
+            GetClientRect(hwnd, &rc);
+            rc.top = PAINT_MENU_RESERVED_SPACE + 1;
+            ScrollWindowEx(hwnd, 0, -pState->font_height * units, &rc, &rc, 0, 0, SW_INVALIDATE);
             return 0;
         }
         case WM_VSCROLL:
@@ -346,8 +374,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                 break; 
             }
             //pState->scroll_info.fMask = SIF_POS;
-            
-            ScrollWindowEx(hwnd, 0, (oldY - pState->scrollY) * pState->font_height, 0, 0, 0, 0, SW_INVALIDATE);
+            RECT rc;
+            GetClientRect(hwnd, &rc);
+            rc.top = PAINT_MENU_RESERVED_SPACE + 1;
+            ScrollWindowEx(hwnd, 0, (oldY - pState->scrollY) * pState->font_height, &rc, &rc, 0, 0, SW_INVALIDATE);
             SCROLL_initScrollInfo(&pState->scroll_info);
             
             return 0;

@@ -1,9 +1,11 @@
 #ifndef PAINT_H
 #define PAINT_H
 
+#define PAINT_MENU_RESERVED_SPACE 30
+
 //Non mutables on top
 //Mutables on bottom
-int PAINT_renderMainWindow(HWND hwnd, int font_height, int font_width, int cursor_active, struct llchar* head, struct llchar* cur, HDC hdcM, HBITMAP hbmM, HFONT hNewFont, HPEN hPenNew, SCROLLINFO scroll_info,
+int PAINT_renderMainWindow(HWND hwnd, int font_height, int font_width, int cursor_active, struct llchar* head, struct llchar* cur, HDC hdcM, HBITMAP hbmM, HFONT hNewFont, HPEN hPenNew, HICON iconList[], SCROLLINFO scroll_info,
                            int* state_scrollY, int* state_line_alloc, char** state_line, int* state_curX, int* state_curY, size_t* state_curAtLine, int* state_requireCursorUpdate, size_t* state_totalLines){
     
     //UTILS_LLCHAR_dumpA(head);
@@ -25,19 +27,37 @@ int PAINT_renderMainWindow(HWND hwnd, int font_height, int font_width, int curso
     HFONT hOldFont = (HFONT)SelectObject(hdcM, hNewFont);
     SIZE sz; //For GetTextExtent
     
-    //Divide available space into rows for drawing text.
+    
     RECT rect;
     GetClientRect(hwnd, &rect);
+    RECT text_rect = rect;
+    RECT menu_rect = rect;
     
+    //Reserve space for menu
+    text_rect.top = PAINT_MENU_RESERVED_SPACE + 1;
+    menu_rect.bottom = PAINT_MENU_RESERVED_SPACE;
     
+    FillRect(hdcM, &menu_rect, (HBRUSH) (COLOR_MENU));
+    DrawIconEx(hdcM, 0, 3, iconList[0], 24 , 24 , 0, 0, DI_NORMAL);
+    DrawIconEx(hdcM, 24, 3, iconList[1], 24 , 24 , 0, 0, DI_NORMAL);
+    DrawIconEx(hdcM, 24*2, 3, iconList[2], 24 , 24 , 0, 0, DI_NORMAL);
+    DrawIconEx(hdcM, 24*3+4, 3+4, iconList[3], 16 , 16 , 0, 0, DI_NORMAL);
     
-    int max_chars = (rect.bottom - rect.top) / font_height;
-    size_t first = rect.top / font_height;
-    //size_t last = rect.bottom / font_height;
-    size_t current = first - scrollY;
+    HPEN hPenOld = SelectObject(hdcM, hPenNew);
+    MoveToEx(hdcM, menu_rect.left, menu_rect.bottom, 0);
+    LineTo(hdcM, menu_rect.right, menu_rect.bottom);
+    SelectObject(hdcM, hPenOld);
+    
+    SetBkMode(hdcM, TRANSPARENT); //Render text with transparent background
+    SetMapMode(hdcM, MM_TEXT); //Ensure map mode is pixel to pixel
+    //Divide available space into rows for drawing text
+    int max_chars = (text_rect.bottom - text_rect.top) / font_height;
+    //size_t first = text_rect.top / font_height;
+    //size_t last = text_rect.bottom / font_height;
+    size_t current = -scrollY;
     
     if (!line){
-        line_alloc = (rect.right - rect.left)/(font_width) + 10;
+        line_alloc = (text_rect.right - text_rect.left)/(font_width) + 10;
         *state_line_alloc = line_alloc;
         line = malloc(line_alloc);
         *state_line = line;
@@ -67,12 +87,12 @@ int PAINT_renderMainWindow(HWND hwnd, int font_height, int font_width, int curso
         
         if (ptr == cur){ //If its a newline, pointer at the start, otherwise at the end of line           
             if (ptr->ch == '\n') {
-                *state_curX = rect.left;
-                *state_curY = current * font_height + font_height;
+                *state_curX = text_rect.left;
+                *state_curY = current * font_height + font_height + text_rect.top;
                 *state_curAtLine = current + scrollY + 1;
             } else {
-                *state_curX = rect.left + sz.cx;
-                *state_curY = current * font_height;
+                *state_curX = text_rect.left + sz.cx;
+                *state_curY = current * font_height + text_rect.top;
                 *state_curAtLine = current + scrollY;
             }
             //Check if cursor is outside camera view. If it is, oops time to rerender the scene
@@ -84,11 +104,11 @@ int PAINT_renderMainWindow(HWND hwnd, int font_height, int font_width, int curso
                 break;
             }
         }
-        ptr->wrapped = sz.cx > (rect.right - rect.left - 15) || ptr->ch == '\n';
-        if (ptr->wrapped || !ptr->next || sz.cx > (rect.right - rect.left - 15)) { // 15 is right margin
+        ptr->wrapped = sz.cx > (text_rect.right - text_rect.left - 15) || ptr->ch == '\n';
+        if (ptr->wrapped || !ptr->next || sz.cx > (text_rect.right - text_rect.left - 15)) { // 15 is right margin
             //Check if in rendersquare then render
-            if ((current) * font_height + font_height >= ps.rcPaint.top && (current) * font_height <= ps.rcPaint.bottom){
-                TabbedTextOut(hdcM, rect.left, (current) * font_height, lpWideCharStr, line_sz, 0, 0, 0);  
+            if ((current) * font_height + font_height + text_rect.top >= ps.rcPaint.top && (current) * font_height + text_rect.top <= ps.rcPaint.bottom && (current) * font_height + font_height > 0){
+                TabbedTextOut(hdcM, text_rect.left, (current) * font_height + text_rect.top, lpWideCharStr, line_sz, 0, 0, 0);  
             }
             
             line_sz = 0;
@@ -108,8 +128,8 @@ int PAINT_renderMainWindow(HWND hwnd, int font_height, int font_width, int curso
         *state_totalLines = current + scrollY + ptr->wrapped;
     
     if (cur == head) { //If its inside the 'reserved' first char, draw at beginng
-        *state_curX = rect.left;
-        *state_curY = first*font_height; //Duplicate code to check regarding cursor offscreen since it wont get caught in the while loop
+        *state_curX = text_rect.left;
+        *state_curY = text_rect.top; //Duplicate code to check regarding cursor offscreen since it wont get caught in the while loop
         if (*state_requireCursorUpdate && (0 < scrollY || 0 > scrollY + max_chars)) {
             *state_requireCursorUpdate = 0;
             *state_scrollY = 0;

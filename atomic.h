@@ -26,6 +26,15 @@ struct ATOMIC_internal_history_stack* ATOMIC_createAtomicStack() {
     return stack;
 }
 
+void ATOMIC_deleteAtomicStack(struct ATOMIC_internal_history_stack* stack) {
+    for (int i = 0; i < stack->len; i++){
+        if (stack->stack[i].action == ATOMIC_CHAR_REMOVE && stack->stack[i].ptr->ch){
+            free(stack->stack[i].ptr);
+        }        
+    }
+    free(stack);
+}
+
 void ATOMIC_internal_addElemToAtomicStack(struct ATOMIC_internal_history_stack** stack_ptr, char action, int data, struct llchar* ptr, struct llchar* cur){
     struct ATOMIC_internal_history_stack* stack = *stack_ptr;
     if (stack->len + 1 > stack->size) {
