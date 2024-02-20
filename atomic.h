@@ -10,6 +10,7 @@ struct ATOMIC_internal_history {
     char action;
     int data;
     struct llchar* ptr;
+    struct llchar* cur;
 };
 
 struct ATOMIC_internal_history_stack {
@@ -25,7 +26,7 @@ struct ATOMIC_internal_history_stack* ATOMIC_createAtomicStack() {
     return stack;
 }
 
-void ATOMIC_internal_addElemToAtomicStack(struct ATOMIC_internal_history_stack** stack_ptr, char action, int data, struct llchar* ptr){
+void ATOMIC_internal_addElemToAtomicStack(struct ATOMIC_internal_history_stack** stack_ptr, char action, int data, struct llchar* ptr, struct llchar* cur){
     struct ATOMIC_internal_history_stack* stack = *stack_ptr;
     if (stack->len + 1 > stack->size) {
         stack = realloc(*stack_ptr, sizeof(struct ATOMIC_internal_history_stack) + sizeof(struct ATOMIC_internal_history) * (stack->size + 25));
@@ -36,6 +37,7 @@ void ATOMIC_internal_addElemToAtomicStack(struct ATOMIC_internal_history_stack**
     stack->stack[stack->len].action = action;
     stack->stack[stack->len].data = data;
     stack->stack[stack->len].ptr = ptr;
+    stack->stack[stack->len].cur = cur;
     stack->len += 1;
 }
 
@@ -60,9 +62,12 @@ struct llchar* ATOMIC_handleInputCharacter(struct ATOMIC_internal_history_stack*
     {
         case '\b': //Backspace
         {
-            if (!omitAdd)
-                ATOMIC_internal_addElemToAtomicStack(stack_ptr, ATOMIC_CHAR_REMOVE, cur->ch, cur->prev);
-            return LLCHAR_delete(cur);
+            if (!omitAdd && cur->prev) {
+                ATOMIC_internal_addElemToAtomicStack(stack_ptr, ATOMIC_CHAR_REMOVE, cur->ch, cur->prev, cur);
+                return LLCHAR_clear(cur);
+            } else {
+                return LLCHAR_delete(cur);
+            }
         }
         case 0x1B: //Esc key
         {
@@ -72,7 +77,7 @@ struct llchar* ATOMIC_handleInputCharacter(struct ATOMIC_internal_history_stack*
         {
             struct llchar* ptr = LLCHAR_addStr("    ", 4, cur);
             if (!omitAdd)
-                ATOMIC_internal_addElemToAtomicStack(stack_ptr, ATOMIC_CHAR_ADD, 4, ptr);
+                ATOMIC_internal_addElemToAtomicStack(stack_ptr, ATOMIC_CHAR_ADD, 4, ptr, 0);
             if (!ptr){
                 printf("Out of memory !");
                 break;
@@ -88,8 +93,9 @@ struct llchar* ATOMIC_handleInputCharacter(struct ATOMIC_internal_history_stack*
             //    break;
             //} //Commented out cuz like ctrl Z and stuf flol
             struct llchar* ptr = LLCHAR_add(wParam, cur);
-            if (!omitAdd)
-                ATOMIC_internal_addElemToAtomicStack(stack_ptr, ATOMIC_CHAR_ADD, 1, ptr);
+            if (!omitAdd){
+                ATOMIC_internal_addElemToAtomicStack(stack_ptr, ATOMIC_CHAR_ADD, 1, ptr, 0);
+            }
             if (!ptr){
                 printf("Out of memory !");
                 break;
@@ -125,9 +131,9 @@ struct llchar* ATOMIC_handlePastedData(struct ATOMIC_internal_history_stack** st
     int len = strlen(text);
     int cull = UTILS_countCharInstanceInString(text, len, '\r');
     
-    ATOMIC_internal_addElemToAtomicStack(stack_ptr, ATOMIC_CHAR_ADD, len - cull, cur);
-    
     struct llchar* ptr = LLCHAR_addStrEx(text, len, cur, '\r');
+    
+    ATOMIC_internal_addElemToAtomicStack(stack_ptr, ATOMIC_CHAR_ADD, len - cull, ptr, 0);
     
     GlobalUnlock(clip);
     
@@ -145,16 +151,16 @@ struct llchar* ATOMIC_popElemFromAtomicStack(struct ATOMIC_internal_history_stac
         
         
         if (page.action == ATOMIC_CHAR_ADD) {
-            cur = page.ptr;
+            cur = page.ptr; //TODO: Rework this so it more efficiently just cuts out all the data.
             for (int i = 0; i < page.data; i++)
                 cur = ATOMIC_handleInputCharacter(stack_ptr, '\b', cur, 1);
             return cur;
         }
         
         if (page.action == ATOMIC_CHAR_REMOVE) {
-            cur = page.ptr;
-            printf("used ptr: %p\n",cur);
-            return ATOMIC_handleInputCharacter(stack_ptr, page.data, cur, 1);
+            printf("used ptr: %p\n",page.ptr);
+            cur = UTILS_LLCHAR_insert(page.cur, page.ptr);
+            //return ATOMIC_handleInputCharacter(stack_ptr, page.data, cur, 1);
         }
     }
     return cur;

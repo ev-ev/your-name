@@ -9,6 +9,23 @@ int UTILS_countCharInstanceInString(char* in, int insz, char ch) {
     return count;
 }
 
+struct llchar* UTILS_LLCHAR_insert(struct llchar* ch, struct llchar* list) {
+    if (list->next) {
+        ch->prev = list;
+        ch->next = list->next;
+        
+        list->next->prev = ch;
+        list->next = ch;
+        return ch;
+    }
+    
+    ch->prev = list;
+    ch->next = 0;
+    
+    list->next = ch;
+    return ch;
+}
+
 struct llchar* UTILS_LLCHAR_add(char ch, struct llchar* list){
     if (list->next) {
         struct llchar* oldnext = list->next;
@@ -92,6 +109,21 @@ struct llchar* UTILS_LLCHAR_addStrEx(char* st, size_t sz, struct llchar* list, c
     }
     return ptr;
 }
+//clear does not free() the deleted character
+struct llchar* UTILS_LLCHAR_clear(struct llchar* list) {
+    struct llchar* prev = list->prev;
+    if (prev) { // Don't clear reserved entry
+        prev->next = list->next;
+        if (list->next)
+            list->next->prev = prev;
+        
+        printf("[-] Info, clear(%p)\n",list);
+        
+        return prev;
+    }
+    list->ch = 0;
+    return list;
+}
 
 struct llchar* UTILS_LLCHAR_delete(struct llchar* list) {
     struct llchar* prev = list->prev;
@@ -102,8 +134,7 @@ struct llchar* UTILS_LLCHAR_delete(struct llchar* list) {
         
         printf("[-] Info, free(%p)\n",list);
         
-        //free(list); WARNING !! WARNING !! MEMORY LEAK??? 
-        //But not really, since we can't free them in case its undo-ed
+        free(list);
         return prev;
     }
     list->ch = 0;
@@ -153,10 +184,12 @@ int UTILS_LLCHAR_countLinesTill(struct llchar* head, struct llchar* cur) {
     return lines;
 }
 
+#define LLCHAR_insert UTILS_LLCHAR_insert
 #define LLCHAR_add UTILS_LLCHAR_add
 #define LLCHAR_addStr UTILS_LLCHAR_addStr
 #define LLCHAR_addStrEx UTILS_LLCHAR_addStrEx
 #define LLCHAR_delete UTILS_LLCHAR_delete
+#define LLCHAR_clear UTILS_LLCHAR_clear
 #define LLCHAR_dumpA UTILS_LLCHAR_dumpA
 #define LLCHAR_dumpB UTILS_LLCHAR_dumpB
 #define LLCHAR_countLines UTILS_LLCHAR_countLines
