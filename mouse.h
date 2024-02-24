@@ -1,6 +1,9 @@
 #ifndef MOUSE_H
 #define MOUSE_H
 
+#include <shobjidl.h>
+#include <unistd.h>
+
 #include "utils.h"
 #include "paint.h"
 
@@ -53,42 +56,121 @@ struct llchar* MOUSE_processMouseDownInClientArea(int x, int y, int font_height,
     return ptr;
 }
 
-int MOUSE_processMouseDownInMenu(int x, int y, struct StateInfo* pState){
+void MOUSE_freeAllData(struct StateInfo* pState){
+    //First free all data
+    LLCHAR_deleteAll1(pState->head);
+    ATOMIC_deleteAtomicStack(pState->history_stack);
+    LLCHAR_deleteAll2(pState->head);
+    free(pState->line);
+    pState->line = 0;
+    CoTaskMemFree(pState->fp_st);
+    
+    //Reset all values
+    pState->head = malloc(sizeof(struct llchar));
+    pState->head->ch = 0;
+    pState->head->wrapped = 0;
+    pState->head->next = 0;
+    pState->head->prev = 0;
+    pState->cur = pState->head;
+    pState->fp_st = 0;
+    pState->history_stack_size_when_last_saved = 0;
+    
+    pState->history_stack = ATOMIC_createAtomicStack();
+}
+
+int MOUSE_processMouseDownInMenu(int x, int y, HWND hwnd, struct StateInfo* pState){
     switch (x/24)
     {
-        case 0:
+        case 0: //New document
         {
-            //First free all data
-            LLCHAR_deleteAll1(pState->head);
-            ATOMIC_deleteAtomicStack(pState->history_stack);
-            LLCHAR_deleteAll2(pState->head);
-            free(pState->line);
-            pState->line = 0;
-            
-            //Reset all values
-            pState->head = malloc(sizeof(struct llchar));
-            pState->head->ch = 0;
-            pState->head->wrapped = 0;
-            pState->head->next = 0;
-            pState->head->prev = 0;
-            pState->cur = pState->head;
-            
-            pState->history_stack = ATOMIC_createAtomicStack();
+            MOUSE_freeAllData(pState);
             return 1;
         }
-        case 1:
+        case 1: //Open
         {
-            printf("Open\n");
+            IFileDialog* pfd = 0;
+            IShellItem* psiResult = 0;
+            PWSTR pszFilePath = 0;
+            HRESULT hr = CoCreateInstance(&CLSID_FileOpenDialog, NULL, CLSCTX_INPROC_SERVER, &IID_IFileDialog, (void**)&pfd);
+            if (SUCCEEDED(hr)){
+                pfd->lpVtbl->SetOptions(pfd, FOS_CREATEPROMPT);
+                pfd->lpVtbl->Show(pfd, hwnd);
+                if (SUCCEEDED(pfd->lpVtbl->GetResult(pfd, &psiResult))){
+                    if (SUCCEEDED(psiResult->lpVtbl->GetDisplayName(psiResult, SIGDN_FILESYSPATH, &pszFilePath))){
+                        MOUSE_freeAllData(pState);
+                        pState->fp_st = pszFilePath;
+                        if (!_waccess(pszFilePath, 04)) {
+                            if (!LLCHAR_loadFile(pState->head, pState->fp_st)){
+                                pState->cur = LLCHAR_addStr("Failed to load file !", 21, pState->head);
+                                pState->fp_st = 0;
+                                CoTaskMemFree(pszFilePath);
+                            }
+                        } else {
+                            if (errno == ENOENT) {
+                                FILE* fp = _wfopen(pszFilePath, L"w");
+                                fclose(fp);
+                            } else {
+                                pState->cur = LLCHAR_addStr("No read access to file!", 23, pState->head);
+                                pState->fp_st = 0;
+                                CoTaskMemFree(pszFilePath);
+                            }
+                        }
+                        //CoTaskMemFree(pszFilePath);
+                    }
+                    psiResult->lpVtbl->Release(psiResult);
+                }
+                pfd->lpVtbl->Release(pfd);
+            } else {
+                printf("Your version of windows is not supported (yet)\n");
+            }
             break;
         }
         case 2:
         {
-            printf("Save\n");
+            if (pState->history_stack->len != pState->history_stack_size_when_last_saved) {
+                if (!pState->fp_st){
+                    IFileDialog* pfd = 0;
+                    IShellItem* psiResult = 0;
+                    PWSTR pszFilePath = 0;
+                    HRESULT hr = CoCreateInstance(&CLSID_FileOpenDialog, NULL, CLSCTX_INPROC_SERVER, &IID_IFileDialog, (void**)&pfd);
+                    if (SUCCEEDED(hr)){
+                        pfd->lpVtbl->SetOptions(pfd, FOS_OVERWRITEPROMPT | FOS_NOREADONLYRETURN);
+                        pfd->lpVtbl->Show(pfd, hwnd);
+                        if (SUCCEEDED(pfd->lpVtbl->GetResult(pfd, &psiResult))){
+                            if (SUCCEEDED(psiResult->lpVtbl->GetDisplayName(psiResult, SIGDN_FILESYSPATH, &pszFilePath))){
+                                pState->fp_st = pszFilePath;                                
+                                //CoTaskMemFree(pszFilePath);
+                            }
+                            psiResult->lpVtbl->Release(psiResult);
+                        }
+                        pfd->lpVtbl->Release(pfd);
+                    } else {
+                        printf("Your version of windows is not supported (yet)\n");
+                    }
+                }
+                if (!pState->fp_st)
+                    return 0;
+                FILE* fp;
+                fp = _wfopen(pState->fp_st, L"w");
+                if (!fp) {
+                    printf("Write access violation!\n");
+                    return 0;
+                }
+                char* pchar = 0;
+                int chars = LLCHAR_to_pchar(pState->head, &pchar);
+                if (chars) {
+                    fwrite(pchar, sizeof(pState->head->ch), chars, fp);
+                }
+                fclose(fp);
+                pState->history_stack_size_when_last_saved = pState->history_stack->len;
+            } else {
+                printf("[DEBUG] User attempted to save but file is good as\n");
+            }
             break;
         }
-        case 3:
+        case 3: //The red x thing
         {
-            printf("Close\n");
+            DestroyWindow(hwnd);
             break;
         }
     }

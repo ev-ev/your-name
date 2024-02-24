@@ -5,7 +5,7 @@
 
 //Non mutables on top
 //Mutables on bottom
-int PAINT_renderMainWindow(HWND hwnd, int font_height, int font_width, int cursor_active, struct llchar* head, struct llchar* cur, HDC hdcM, HBITMAP hbmM, HFONT hNewFont, HPEN hPenNew, HICON iconList[], SCROLLINFO scroll_info,
+int PAINT_renderMainWindow(HWND hwnd, int font_height, int font_width, int cursor_active, struct llchar* head, struct llchar* cur, HDC hdcM, HBITMAP hbmM, HFONT hNewFont, HPEN hPenNew, HICON iconList[], SCROLLINFO scroll_info, struct ATOMIC_internal_history_stack* history_stack, int hsswls, 
                            int* state_scrollY, int* state_line_alloc, char** state_line, int* state_curX, int* state_curY, size_t* state_curAtLine, int* state_requireCursorUpdate, size_t* state_totalLines){
     
     //UTILS_LLCHAR_dumpA(head);
@@ -33,20 +33,23 @@ int PAINT_renderMainWindow(HWND hwnd, int font_height, int font_width, int curso
     RECT text_rect = rect;
     RECT menu_rect = rect;
     
-    //Reserve space for menu
+    //MENU START!!
     text_rect.top = PAINT_MENU_RESERVED_SPACE + 1;
     menu_rect.bottom = PAINT_MENU_RESERVED_SPACE;
     
     FillRect(hdcM, &menu_rect, (HBRUSH) (COLOR_MENU));
     DrawIconEx(hdcM, 0, 3, iconList[0], 24 , 24 , 0, 0, DI_NORMAL);
     DrawIconEx(hdcM, 24, 3, iconList[1], 24 , 24 , 0, 0, DI_NORMAL);
-    DrawIconEx(hdcM, 24*2, 3, iconList[2], 24 , 24 , 0, 0, DI_NORMAL);
+    if (history_stack->len != hsswls)
+        DrawIconEx(hdcM, 24*2, 3, iconList[2], 24 , 24 , 0, 0, DI_NORMAL);
     DrawIconEx(hdcM, 24*3+4, 3+4, iconList[3], 16 , 16 , 0, 0, DI_NORMAL);
     
     HPEN hPenOld = SelectObject(hdcM, hPenNew);
     MoveToEx(hdcM, menu_rect.left, menu_rect.bottom, 0);
     LineTo(hdcM, menu_rect.right, menu_rect.bottom);
     SelectObject(hdcM, hPenOld);
+    
+    //MENU END!!
     
     SetBkMode(hdcM, TRANSPARENT); //Render text with transparent background
     SetMapMode(hdcM, MM_TEXT); //Ensure map mode is pixel to pixel
@@ -69,6 +72,11 @@ int PAINT_renderMainWindow(HWND hwnd, int font_height, int font_width, int curso
     struct llchar* ptr = head->next; // First is reserved 
     
     while (ptr){
+        if (ptr->ch == '\r') {
+            if (!ptr->next) break;
+            ptr = ptr->next;
+            continue; //Ignore this weird thing
+        }
         if (ptr->ch != '\n'){
             if (line_sz + 1 > line_alloc) {
                 line = realloc(line, line_alloc * 2);

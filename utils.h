@@ -109,6 +109,26 @@ struct llchar* UTILS_LLCHAR_addStrEx(char* st, size_t sz, struct llchar* list, c
     }
     return ptr;
 }
+
+int UTILS_LLCHAR_loadFile(struct llchar* head, wchar_t* fp_st){
+    FILE* fp;
+    char ch = 0; //TODO, widechar unicode support n shit
+    
+    fp = _wfopen(fp_st, L"r");
+    if (!fp)
+        return 0;
+    
+    ch = fgetc(fp);
+    while (ch != EOF) {
+        head = UTILS_LLCHAR_add(ch, head);
+        ch = fgetc(fp);
+    }
+    
+    fclose(fp);
+    
+    return 1;
+}
+
 //clear does not free() the deleted character
 struct llchar* UTILS_LLCHAR_clear(struct llchar* list) {
     struct llchar* prev = list->prev;
@@ -212,6 +232,31 @@ int UTILS_LLCHAR_countLinesTill(struct llchar* head, struct llchar* cur) {
     return lines;
 }
 
+int UTILS_LLCHAR_countElem(struct llchar* head) {
+    int elem = 0;
+    while (head) {
+        elem += 1;
+        head = head->next;
+    }
+    return elem;
+}
+
+int UTILS_LLCHAR_to_pchar(struct llchar* head, char** ppchar){
+    head = head->next;
+    int elem = UTILS_LLCHAR_countElem(head);
+    char* pchar = malloc(elem * sizeof(head->ch));
+    if (!pchar)
+        return 0;
+    *ppchar = pchar;
+    int i = 0;
+    while (head) {
+        pchar[i] = head->ch;
+        i += 1;
+        head = head->next;
+    }
+    return elem;
+}
+
 #define LLCHAR_insert UTILS_LLCHAR_insert
 #define LLCHAR_add UTILS_LLCHAR_add
 #define LLCHAR_addStr UTILS_LLCHAR_addStr
@@ -219,10 +264,12 @@ int UTILS_LLCHAR_countLinesTill(struct llchar* head, struct llchar* cur) {
 #define LLCHAR_delete UTILS_LLCHAR_delete
 #define LLCHAR_deleteAll1 UTILS_LLCHAR_deleteAll1
 #define LLCHAR_deleteAll2 UTILS_LLCHAR_deleteAll2
+#define LLCHAR_loadFile UTILS_LLCHAR_loadFile
 #define LLCHAR_clear UTILS_LLCHAR_clear
 #define LLCHAR_dumpA UTILS_LLCHAR_dumpA
 #define LLCHAR_dumpB UTILS_LLCHAR_dumpB
 #define LLCHAR_moveLines UTILS_LLCHAR_moveLines
 #define LLCHAR_countLines UTILS_LLCHAR_countLines
 #define LLCHAR_countLinesTill UTILS_LLCHAR_countLinesTill
+#define LLCHAR_to_pchar UTILS_LLCHAR_to_pchar
 #endif

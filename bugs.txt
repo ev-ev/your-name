@@ -1,12 +1,13 @@
 Bugs
 [*] Max chars on line then newline empty line
 [-] After resizing need to scroll to return camera to proper position
+[!] If scrolled with cursor at position 0, the cursor scrolls with the camera (visual bug)
+[-] When pressing Ctrl+backspace it makes weird input
 
 Selected Target (if any)
-->Mouse support
+->Menu
 
 Targets
-[!']mouse support
 [!']text selection support
 [/]Redo
 [o]Implement all TEXTMETRIC infos

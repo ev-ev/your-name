@@ -36,7 +36,7 @@ struct StateInfo {
     
     int scrollY; //Current scrolled pos
     
-    char* fp; //file pointer (unused)
+    PWSTR fp_st; //file pointer (unused)
     
     struct llchar* head; //Start of file
     struct llchar* cur; //Insertion point in file
@@ -59,6 +59,7 @@ struct StateInfo {
     int idTimer; //Variable for interacting with carret timer thru winapi
     
     struct ATOMIC_internal_history_stack* history_stack;
+    int history_stack_size_when_last_saved;
     
     HDC hdcM;
     HBITMAP hbmM;
@@ -161,6 +162,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                                     pState->hPenNew,
                                     pState->iconList,
                                     pState->scroll_info,
+                                    pState->history_stack,
+                                    pState->history_stack_size_when_last_saved,
                                     &pState->scrollY,
                                     &pState->line_alloc,
                                     &pState->line,
@@ -296,7 +299,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                     SetTimer(hwnd, 1, GetCaretBlinkTime(), 0);
                     InvalidateRect(hwnd, NULL, 0);
                 } else { //we are clicking on the menu
-                    if (MOUSE_processMouseDownInMenu(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), pState)){
+                    if (MOUSE_processMouseDownInMenu(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), hwnd, pState)){
                         InvalidateRect(hwnd, NULL, 0);
                     }
                 }
@@ -387,7 +390,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
 }
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow){
-    const wchar_t CLASS_NAME[] = L"EvEditor Class";
+    const wchar_t CLASS_NAME[] = L"YourName Class";
     WNDCLASS wc;
     wc.cbClsExtra = 0;
     wc.cbWndExtra = 0;
@@ -419,8 +422,14 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         pState.cur = LLCHAR_addStr("Your\nName", 9, pState.head);
     } else {
         pState.cur = pState.head;
-        pState.fp = malloc(strlen((char*)pCmdLine)); //is this safe
-        strcpy(pState.fp, (char*)pCmdLine);
+        pState.fp_st = CoTaskMemAlloc(wcslen(pCmdLine) * sizeof(wchar_t)); //is this safe
+        memcpy(pState.fp_st, pCmdLine, wcslen(pCmdLine) * sizeof(wchar_t));
+        
+        if (!UTILS_LLCHAR_loadFile(pState.head, pState.fp_st)){
+            pState.cur = LLCHAR_addStr("Failed to load file !", 21, pState.head);
+            CoTaskMemFree(pState.fp_st);
+            pState.fp_st = 0;
+        }
     }
     
     //Make 'accelerator' table
@@ -463,10 +472,14 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     while (GetMessage(&msg, NULL, 0, 0) > 0) {
         if (!TranslateAccelerator(winHwnd, hAccel, &msg)){
             TranslateMessage(&msg);
+            //printf("filepath %ls\n",pState.fp);
             DispatchMessage(&msg);
         }
     }
     
+    
+    if (pState.fp_st)
+        CoTaskMemFree(pState.fp_st);
     DestroyAcceleratorTable(hAccel);
     
     return 0;
