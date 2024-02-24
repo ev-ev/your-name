@@ -175,8 +175,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         }
         case WM_TIMER:
         {
-            pState->cursor_active = !pState->cursor_active;
-            InvalidateRect(hwnd, 0, 0);
+            //pState->cursor_active = !pState->cursor_active;
+            //InvalidateRect(hwnd, 0, 0);
             return 0;
         }
         
@@ -329,7 +329,9 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             RECT rc;
             GetClientRect(hwnd, &rc);
             rc.top = PAINT_MENU_RESERVED_SPACE + 1;
-            ScrollWindowEx(hwnd, 0, -pState->font_height * units, &rc, &rc, 0, 0, SW_INVALIDATE);
+            //ScrollWindowEx is the devil
+            //ScrollWindowEx(hwnd, 0, -pState->font_height * units, &rc, &rc, 0, 0, SW_INVALIDATE);
+            InvalidateRect(hwnd, NULL, 0);
             return 0;
         }
         case WM_VSCROLL:
@@ -380,8 +382,11 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             RECT rc;
             GetClientRect(hwnd, &rc);
             rc.top = PAINT_MENU_RESERVED_SPACE + 1;
-            ScrollWindowEx(hwnd, 0, (oldY - pState->scrollY) * pState->font_height, &rc, &rc, 0, 0, SW_INVALIDATE);
+            //ScrollWindowEx is the devil
+            //ScrollWindowEx(hwnd, 0, (oldY - pState->scrollY) * pState->font_height, &rc, &rc, 0, 0, SW_INVALIDATE);
             SCROLL_initScrollInfo(&pState->scroll_info);
+            InvalidateRect(hwnd, NULL, 0);
+            
             
             return 0;
         }

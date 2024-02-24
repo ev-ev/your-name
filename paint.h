@@ -14,8 +14,26 @@ int PAINT_renderMainWindow(HWND hwnd, int font_height, int font_width, int curso
     HDC hdc = BeginPaint(hwnd, &ps);
     HDC hbmOld = SelectObject(hdcM, hbmM);
     
+    RECT rect; GetClientRect(hwnd, &rect);
+    RECT text_rect = rect;
+    RECT menu_rect = rect;
+    text_rect.top = PAINT_MENU_RESERVED_SPACE + 1;
+    menu_rect.bottom = PAINT_MENU_RESERVED_SPACE;
+    
+    int max_chars = (text_rect.bottom - text_rect.top) / font_height;
+    
+    SCROLL_setScrollInfoPos(&scroll_info, *state_scrollY);
+    SCROLL_setScrollInfoPageSize(&scroll_info, max_chars);
+    SCROLL_setScrollInfoRange(&scroll_info, 0, LLCHAR_countLines(head) + max_chars - 2);
+    SCROLL_commitScrollInfo(hwnd, SB_VERT, &scroll_info, 1);
+    
+    SCROLL_getScrollInfo(hwnd, SB_VERT, &scroll_info);
+    *state_scrollY = scroll_info.nPos; //Update scrollY with the true scroll position
+    
+    int rerendered = 0;
     LABEL_RERENDER:
     int rerender = 0;
+    
     
     int scrollY = *state_scrollY;
     char* line = *state_line;
@@ -27,15 +45,7 @@ int PAINT_renderMainWindow(HWND hwnd, int font_height, int font_width, int curso
     HFONT hOldFont = (HFONT)SelectObject(hdcM, hNewFont);
     SIZE sz; //For GetTextExtent
     
-    
-    RECT rect;
-    GetClientRect(hwnd, &rect);
-    RECT text_rect = rect;
-    RECT menu_rect = rect;
-    
     //MENU START!!
-    text_rect.top = PAINT_MENU_RESERVED_SPACE + 1;
-    menu_rect.bottom = PAINT_MENU_RESERVED_SPACE;
     
     FillRect(hdcM, &menu_rect, (HBRUSH) (COLOR_MENU));
     DrawIconEx(hdcM, 0, 3, iconList[0], 24 , 24 , 0, 0, DI_NORMAL);
@@ -54,9 +64,7 @@ int PAINT_renderMainWindow(HWND hwnd, int font_height, int font_width, int curso
     SetBkMode(hdcM, TRANSPARENT); //Render text with transparent background
     SetMapMode(hdcM, MM_TEXT); //Ensure map mode is pixel to pixel
     //Divide available space into rows for drawing text
-    int max_chars = (text_rect.bottom - text_rect.top) / font_height;
-    //size_t first = text_rect.top / font_height;
-    //size_t last = text_rect.bottom / font_height;
+    
     size_t current = -scrollY;
     
     if (!line){
@@ -147,17 +155,19 @@ int PAINT_renderMainWindow(HWND hwnd, int font_height, int font_width, int curso
     }
     
     if (rerender) {
+        rerendered = 1;
         goto LABEL_RERENDER; //A downside of my approach of deferring everything related to scrolling to WM_PAINT
     }
     
-    //Now that we know current state of document, update scrollbar
-    SCROLL_setScrollInfoPos(&scroll_info, scrollY);
-    SCROLL_setScrollInfoPageSize(&scroll_info, max_chars);
-    SCROLL_setScrollInfoRange(&scroll_info, 0, *state_totalLines + max_chars - 2);
-    SCROLL_commitScrollInfo(hwnd, SB_VERT, &scroll_info, 1);
+    if (rerendered) { //Update scrollbar when scroll pos suddenly changes
+        SCROLL_setScrollInfoPos(&scroll_info, *state_scrollY);
+        SCROLL_setScrollInfoPageSize(&scroll_info, max_chars);
+        SCROLL_setScrollInfoRange(&scroll_info, 0, LLCHAR_countLines(head) + max_chars - 2);
+        SCROLL_commitScrollInfo(hwnd, SB_VERT, &scroll_info, 1);
+    }
     
     //Draw cursor
-    if (cursor_active){
+    if (cursor_active && *state_curY >= text_rect.top){
         HPEN hPenOld = SelectObject(hdcM, hPenNew);
         MoveToEx(hdcM, *state_curX, *state_curY, 0);
         LineTo(hdcM, *state_curX, *state_curY + font_height);

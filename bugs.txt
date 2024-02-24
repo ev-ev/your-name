@@ -1,8 +1,10 @@
 Bugs
-[*] Max chars on line then newline empty line
+[-] Max chars on line then newline empty line
 [-] After resizing need to scroll to return camera to proper position
 [!] If scrolled with cursor at position 0, the cursor scrolls with the camera (visual bug)
 [-] When pressing Ctrl+backspace it makes weird input
+[-] Visual bug when scrolling on lagframes (probably because ScrollWindow does not target the buffer and instead targets the window directly) 
+[-] Out of view cursor renders on menubar
 
 Selected Target (if any)
 ->Menu
