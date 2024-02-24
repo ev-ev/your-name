@@ -175,7 +175,13 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         }
         case WM_TIMER:
         {
-            //pState->cursor_active = !pState->cursor_active;
+            pState->cursor_active = !pState->cursor_active;
+            RECT rect;
+            rect.top = pState->curY;
+            rect.bottom = pState->curY + pState->font_height;
+            rect.left = pState->curX - 1;
+            rect.right = pState->curX + 1;
+            InvalidateRect(hwnd,&rect, 0);
             //InvalidateRect(hwnd, 0, 0);
             return 0;
         }
@@ -412,7 +418,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     
     struct StateInfo pState = {0};
     pState.cursor_active = 0;
-    pState.font_size = 30;
+    pState.font_size = 25;
     pState.is_monospaced = 0;
     pState.idTimer = -1;
     

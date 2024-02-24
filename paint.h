@@ -77,7 +77,7 @@ int PAINT_renderMainWindow(HWND hwnd, int font_height, int font_width, int curso
     int lpWideSz = line_alloc * 6;
     LPWSTR lpWideCharStr = malloc(lpWideSz);
     size_t line_sz = 0;
-    struct llchar* ptr = head->next; // First is reserved 
+    struct llchar* ptr = head; // First is reserved 
     
     while (ptr){
         if (ptr->ch == '\r') {
@@ -85,7 +85,7 @@ int PAINT_renderMainWindow(HWND hwnd, int font_height, int font_width, int curso
             ptr = ptr->next;
             continue; //Ignore this weird thing
         }
-        if (ptr->ch != '\n'){
+        if (ptr->ch != '\n' && ptr != head){
             if (line_sz + 1 > line_alloc) {
                 line = realloc(line, line_alloc * 2);
                 *state_line = line;
@@ -143,7 +143,7 @@ int PAINT_renderMainWindow(HWND hwnd, int font_height, int font_width, int curso
     if (ptr)
         *state_totalLines = current + scrollY + ptr->wrapped;
     
-    if (cur == head) { //If its inside the 'reserved' first char, draw at beginng
+    /*if (cur == head) { //If its inside the 'reserved' first char, draw at beginng
         *state_curX = text_rect.left;
         *state_curY = text_rect.top; //Duplicate code to check regarding cursor offscreen since it wont get caught in the while loop
         if (*state_requireCursorUpdate && (0 < scrollY || 0 > scrollY + max_chars)) {
@@ -152,7 +152,7 @@ int PAINT_renderMainWindow(HWND hwnd, int font_height, int font_width, int curso
             rerender = 1;
             //InvalidateRect(hwnd, NULL, 0);
         }
-    }
+    }*/
     
     if (rerender) {
         rerendered = 1;
