@@ -143,16 +143,6 @@ int PAINT_renderMainWindow(HWND hwnd, int font_height, int font_width, int curso
     if (ptr)
         *state_totalLines = current + scrollY + ptr->wrapped;
     
-    /*if (cur == head) { //If its inside the 'reserved' first char, draw at beginng
-        *state_curX = text_rect.left;
-        *state_curY = text_rect.top; //Duplicate code to check regarding cursor offscreen since it wont get caught in the while loop
-        if (*state_requireCursorUpdate && (0 < scrollY || 0 > scrollY + max_chars)) {
-            *state_requireCursorUpdate = 0;
-            *state_scrollY = 0;
-            rerender = 1;
-            //InvalidateRect(hwnd, NULL, 0);
-        }
-    }*/
     
     if (rerender) {
         rerendered = 1;

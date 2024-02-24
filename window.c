@@ -221,6 +221,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         }
         case WM_CHAR:
         {
+            if (GetKeyState(VK_CONTROL) & 0x8000)
+                return 0;
             pState->cur = ATOMIC_handleInputCharacter(&pState->history_stack, wParam, pState->cur, 0);
             pState->curDt = 0; //Request a refresh of current cursor in line position
             pState->requireCursorUpdate = 1;
@@ -343,7 +345,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         case WM_VSCROLL:
         {
             SCROLL_getScrollInfo(hwnd, SB_VERT, &pState->scroll_info);
-            int oldY = pState->scrollY;
+            //int oldY = pState->scrollY;
             switch (LOWORD(wParam))
             {
             // User clicked the HOME keyboard key.
