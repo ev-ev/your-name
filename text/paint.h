@@ -1,8 +1,6 @@
 #ifndef PAINT_H
 #define PAINT_H
 
-#define PAINT_MENU_RESERVED_SPACE 30
-
 //Non mutables on top
 //Mutables on bottom
 int PAINT_renderMainWindow(HWND hwnd, int font_height, int font_width, int cursor_active, struct llchar* head, struct llchar* cur, HDC hdcM, HBITMAP hbmM, HFONT hNewFont, HPEN hPenNew, HICON iconList[], SCROLLINFO scroll_info, struct ATOMIC_internal_history_stack* history_stack, int hsswls, 
@@ -50,9 +48,11 @@ int PAINT_renderMainWindow(HWND hwnd, int font_height, int font_width, int curso
     FillRect(hdcM, &menu_rect, (HBRUSH) (COLOR_MENU));
     DrawIconEx(hdcM, 0, 3, iconList[0], 24 , 24 , 0, 0, DI_NORMAL);
     DrawIconEx(hdcM, 24, 3, iconList[1], 24 , 24 , 0, 0, DI_NORMAL);
-    if (history_stack->len != hsswls)
+    if (history_stack->len == hsswls)
+        DrawIconEx(hdcM, 24*2, 3, iconList[3], 24 , 24 , 0, 0, DI_NORMAL);
+    else
         DrawIconEx(hdcM, 24*2, 3, iconList[2], 24 , 24 , 0, 0, DI_NORMAL);
-    DrawIconEx(hdcM, 24*3+4, 3+4, iconList[3], 16 , 16 , 0, 0, DI_NORMAL);
+    DrawIconEx(hdcM, 24*3+4, 3+4, iconList[4], 16 , 16 , 0, 0, DI_NORMAL);
     
     HPEN hPenOld = SelectObject(hdcM, hPenNew);
     MoveToEx(hdcM, menu_rect.left, menu_rect.bottom, 0);

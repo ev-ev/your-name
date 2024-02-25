@@ -2,9 +2,7 @@ Bugs
 [-] Max chars on line then newline empty line
 [-] When resizing and scrollbar needs to be moved may flicker a bit
 
-
 Selected Target (if any)
-->Menu
 
 Targets
 [!']text selection support
