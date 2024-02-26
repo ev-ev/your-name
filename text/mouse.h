@@ -163,7 +163,7 @@ int MOUSE_processMouseDownInMenu(int x, int y, HWND hwnd, struct StateInfo* pSta
                 }
                 fclose(fp);
                 pState->history_stack_size_when_last_saved = pState->history_stack->len;
-                printf("Wrote out file :3\n");
+                return 1;
             } else {
                 printf("[DEBUG] User attempted to save but file is good as\n");
             }
