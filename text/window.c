@@ -428,6 +428,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     while (GetMessage(&msg, NULL, 0, 0) > 0) {
         if (!TranslateAccelerator(winHwnd, hAccel, &msg)){
             TranslateMessage(&msg);
+            #ifdef DBGM
+            test_magic();
+            #endif
             //printf("filepath %ls\n",pState.fp);
             DispatchMessage(&msg);
         }
