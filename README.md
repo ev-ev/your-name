@@ -1,12 +1,13 @@
 # your-name
 
-C + winapi text editor
-
-:D
+Your name is a text editor written in C for windows using Windows API. Planning to make it into a WYSISYG markdown editor in the future :)) Check out the video demo below !
 
 
 
-https://github.com/ev-ev/your-name/assets/27211692/3d3df47c-59c5-45a6-a921-54ae43835d6a
+https://github.com/ev-ev/your-name/assets/27211692/e4eca168-84de-4a74-9228-bdfa65d59f9f
+
+
+
 
 ## Contributing
 Feel free to contribute to my project, I'd be thankful and credit will be given :)<br>
