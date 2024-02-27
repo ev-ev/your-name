@@ -2,11 +2,12 @@ Bugs
 [-] Max chars on line then newline empty line
 [-] When resizing and scrollbar needs to be moved may flicker a bit
 [!] Program crashed at some point during testing on call to free(). Somewhere memory is being corrupted, to resolve this I have written some modules to send alerts when buffer is overrun somewhere. Hopefully this can be traced down and found.
+    **I do belive I fixed what was causing this but maintain vigillance !!
 
 Selected Target (if any)
+[!']text selection support
 
 Targets
-[!']text selection support
 [/]Redo
 [o]Implement all TEXTMETRIC infos
 [o]Non english support

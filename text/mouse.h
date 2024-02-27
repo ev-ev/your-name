@@ -182,4 +182,26 @@ void MOUSE_processMouseOverMenu(int x, int y) {
     //printf("Hover:%d\n",x/24);
 }
 
+int MOUSE_processMouseDragInClientArea(int x, int y, HWND hwnd, struct StateInfo* pState) {
+    if (!pState->drag_from) {
+        SetCapture(hwnd);
+        pState->drag_from = pState->cur;
+    }
+    
+    struct llchar* ptr = MOUSE_processMouseDownInClientArea(x, y, pState->font_height, pState->scrollY, pState->head, hwnd, pState->hNewFont, &pState->line_alloc, &pState->line);
+    if (pState->cur != ptr)
+        pState->requireCursorUpdate = 1;
+    pState->cur = ptr;
+
+    return 1;
+}
+
+int MOUSE_processMouseLUP(int x, int y, HWND hwnd, struct StateInfo* pState) {
+    if (pState->drag_from) {
+        ReleaseCapture();
+        pState->drag_from = 0;
+    }
+    return 1;
+}
+
 #endif

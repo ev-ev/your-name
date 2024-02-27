@@ -31,6 +31,7 @@ struct StateInfo {
     
     struct llchar* head; //Start of file
     struct llchar* cur; //Insertion point in file
+    struct llchar* drag_from; //Which point in the text the cursor is being dragged from
     
     size_t totalLines;
     size_t curAtLine; //Stores the location of the cursor from the last update of WM_PAINT
@@ -60,7 +61,7 @@ struct StateInfo {
     SCROLLINFO scroll_info;
 };
 
-#define DBGM
+#define DBGM //Comment this out in release
 #ifdef DBGM
 struct mcinfo {
     int size;

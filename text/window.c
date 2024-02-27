@@ -93,32 +93,11 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         
         case WM_PAINT:
         {
-            return PAINT_renderMainWindow( hwnd,
-                                    pState->font_height,
-                                    pState->font_av_width,
-                                    pState->cursor_active,
-                                    pState->head,
-                                    pState->cur,
-                                    pState->hdcM,
-                                    pState->hbmM,
-                                    pState->hNewFont,
-                                    pState->hPenNew,
-                                    pState->iconList,
-                                    pState->scroll_info,
-                                    pState->history_stack,
-                                    pState->history_stack_size_when_last_saved,
-                                    &pState->scrollY,
-                                    &pState->line_alloc,
-                                    &pState->line,
-                                    &pState->curX,
-                                    &pState->curY,
-                                    &pState->curAtLine,
-                                    &pState->requireCursorUpdate,
-                                    &pState->totalLines);
+            return PAINT_renderMainWindow( hwnd, pState);
         }
         case WM_TIMER:
         {
-            pState->cursor_active = !pState->cursor_active;
+            //pState->cursor_active = !pState->cursor_active;
             RECT rect;
             rect.top = pState->curY;
             rect.bottom = pState->curY + pState->font_height;
@@ -263,6 +242,18 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                 MOUSE_processMouseOverMenu(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
             }
             
+            if (wParam == MK_LBUTTON) { //Dragging
+                if (GET_Y_LPARAM(lParam) > PAINT_MENU_RESERVED_SPACE || GET_Y_LPARAM(lParam) < 0){
+                    if (MOUSE_processMouseDragInClientArea(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), hwnd, pState)){
+                        InvalidateRect(hwnd, NULL, 0);
+                    }
+                }
+            }
+            return 0;
+        }
+        case WM_LBUTTONUP:
+        {
+            MOUSE_processMouseLUP(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), hwnd, pState);
             return 0;
         }
         case WM_MOUSEWHEEL:
