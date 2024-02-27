@@ -149,6 +149,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             pState->curDt = 0; //Request a refresh of current cursor in line position
             pState->requireCursorUpdate = 1;
             
+            pState->drag_from = 0;
+            
             KillTimer(hwnd, 1);
             pState->cursor_active = 1;
             SetTimer(hwnd, 1, GetCaretBlinkTime(), 0);
@@ -165,6 +167,9 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                     if (ptr){
                         pState->cur = ptr;
                     }
+                    
+                    pState->drag_from = 0;
+                    
                     pState->curDt = 0;
                     pState->requireCursorUpdate = 1;
                     InvalidateRect(hwnd, NULL, 0);
@@ -178,6 +183,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                     }
                     pState->cur = ATOMIC_popElemFromAtomicStack(&pState->history_stack, pState->cur, dc, pState->hNewFont, &pState->curDt);
                     pState->requireCursorUpdate = 1;
+                    
+                    pState->drag_from = 0;
                     
                     KillTimer(hwnd, 1);
                     pState->cursor_active = 1;
@@ -210,6 +217,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             }
             pState->requireCursorUpdate = 1;
             
+            pState->drag_from = 0;
+            
             KillTimer(hwnd, 1);
             pState->cursor_active = 1;
             SetTimer(hwnd, 1, GetCaretBlinkTime(), 0);
@@ -220,6 +229,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         case WM_LBUTTONDOWN:
         {
             if (wParam == MK_LBUTTON) {
+                pState->drag_from = 0;
                 if (GET_Y_LPARAM(lParam) > PAINT_MENU_RESERVED_SPACE){
                     pState->cur = MOUSE_processMouseDownInClientArea(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), pState->font_height, pState->scrollY, pState->head, hwnd, pState->hNewFont, &pState->line_alloc, &pState->line);
                     pState->requireCursorUpdate = 1;

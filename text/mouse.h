@@ -74,6 +74,8 @@ void MOUSE_freeAllData(struct StateInfo* pState){
     pState->cur = pState->head;
     pState->fp_st = 0;
     pState->history_stack_size_when_last_saved = 0;
+    pState->is_dragging = 0;
+    pState->drag_from = 0;
     
     pState->history_stack = ATOMIC_createAtomicStack();
 }
@@ -183,9 +185,10 @@ void MOUSE_processMouseOverMenu(int x, int y) {
 }
 
 int MOUSE_processMouseDragInClientArea(int x, int y, HWND hwnd, struct StateInfo* pState) {
-    if (!pState->drag_from) {
+    if (!pState->is_dragging) {
         SetCapture(hwnd);
         pState->drag_from = pState->cur;
+        pState->is_dragging = 1;
     }
     
     struct llchar* ptr = MOUSE_processMouseDownInClientArea(x, y, pState->font_height, pState->scrollY, pState->head, hwnd, pState->hNewFont, &pState->line_alloc, &pState->line);
@@ -197,9 +200,9 @@ int MOUSE_processMouseDragInClientArea(int x, int y, HWND hwnd, struct StateInfo
 }
 
 int MOUSE_processMouseLUP(int x, int y, HWND hwnd, struct StateInfo* pState) {
-    if (pState->drag_from) {
+    if (pState->is_dragging) {
         ReleaseCapture();
-        pState->drag_from = 0;
+        pState->is_dragging = 0;
     }
     return 1;
 }

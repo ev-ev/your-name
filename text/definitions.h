@@ -22,6 +22,8 @@ struct StateInfo {
     int curX; //Stored location of cursor to be drawn. This is required for animating the cursor flashing so redrawing all the text is not required.
     int curY;
     
+    int is_dragging;
+    
     int curDt; //When traversing a file, store the location of the cursor
     int requireCursorUpdate; // Was cursor moved/character inputed?
     
