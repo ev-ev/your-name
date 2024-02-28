@@ -30,7 +30,6 @@ struct llchar* MOUSE_processMouseDownInClientArea(int x, int y, int font_height,
                 line = realloc(line, *state_line_alloc * 2);
                 *state_line = line;
                 *state_line_alloc *= 2;
-                *state_line_alloc *= *state_line_alloc;
                 
                 lpWideCharStr = realloc(lpWideCharStr, *state_line_alloc * 6);
             }
@@ -122,10 +121,11 @@ int MOUSE_processMouseDownInMenu(int x, int y, HWND hwnd, struct StateInfo* pSta
                     psiResult->lpVtbl->Release(psiResult);
                 }
                 pfd->lpVtbl->Release(pfd);
+                pState->block_dragging = 1;
             } else {
                 printf("Your version of windows is not supported (yet)\n");
             }
-            break;
+            return 1;
         }
         case 2:
         {
@@ -146,6 +146,7 @@ int MOUSE_processMouseDownInMenu(int x, int y, HWND hwnd, struct StateInfo* pSta
                             psiResult->lpVtbl->Release(psiResult);
                         }
                         pfd->lpVtbl->Release(pfd);
+                        pState->block_dragging = 1;
                     } else {
                         printf("Your version of windows is not supported (yet)\n");
                     }

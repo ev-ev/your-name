@@ -49,7 +49,6 @@ int PAINT_renderMainWindow(HWND hwnd,struct StateInfo* pState){
     
     int scrollY = pState->scrollY;
     char* line = pState->line;
-    int line_alloc = pState->line_alloc;
     
     FillRect(hdcM, &ps.rcPaint, (HBRUSH) (COLOR_WINDOW+1));
     
@@ -82,13 +81,12 @@ int PAINT_renderMainWindow(HWND hwnd,struct StateInfo* pState){
     size_t current = -scrollY;
     
     if (!line){
-        line_alloc = (text_rect.right - text_rect.left)/(font_width) + 10;
-        pState->line_alloc = line_alloc;
-        line = malloc(line_alloc);
+        pState->line_alloc = (text_rect.right - text_rect.left)/(font_width) + 10;
+        line = malloc(pState->line_alloc);
         pState->line = line;
     }
     
-    int lpWideSz = line_alloc * 6;
+    int lpWideSz = pState->line_alloc * 6;
     LPWSTR lpWideCharStr = malloc(lpWideSz);
     size_t line_sz = 0;
     struct llchar* ptr = head; // First is reserved 
@@ -100,19 +98,18 @@ int PAINT_renderMainWindow(HWND hwnd,struct StateInfo* pState){
             continue; //Ignore this weird thing
         }
         if (ptr->ch != '\n' && ptr != head){
-            if (line_sz + 1 > line_alloc) {
-                line = realloc(line, line_alloc * 2);
+            if (line_sz + 1 > pState->line_alloc) {
+                line = realloc(line, pState->line_alloc * 2);
                 pState->line = line;
-                line_alloc *= 2;
-                pState->line_alloc *= line_alloc;
+                pState->line_alloc *= 2;
                 
-                lpWideCharStr = realloc(lpWideCharStr, line_alloc * 6);
+                lpWideCharStr = realloc(lpWideCharStr, pState->line_alloc * 6);
             }
             line[line_sz] = ptr->ch;
             line_sz += 1;
         }
         //Prepare line and get its size
-        lpWideSz = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, line, line_sz, lpWideCharStr, line_alloc * 6);
+        lpWideSz = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, line, line_sz, lpWideCharStr, pState->line_alloc * 6);
         GetTextExtentPoint32(hdcM, lpWideCharStr, lpWideSz, &sz);
         
         if (ptr == cur){ //If its a newline, pointer at the start, otherwise at the end of line           
@@ -139,16 +136,18 @@ int PAINT_renderMainWindow(HWND hwnd,struct StateInfo* pState){
             } else if (drag_from){ //We reached the cursor before the selection
                 draw_select_st = text_rect.left + sz.cx;
                 draw_select = 1;
+                pState->drag_dir = -1;
             }
         }
-        //We reached the selection before reaching the cursor i.e. the cursor is below us
+        
         if (ptr == drag_from) {
-            if (draw_select) {
+            if (draw_select) { //We reached the selection before reaching the cursor i.e. the cursor is below us
                 draw_select_ed = text_rect.left + sz.cx;
             }
             else { //We reached the end of the selection
                 draw_select_st = text_rect.left + sz.cx;
-                draw_select = 1; 
+                draw_select = 1;
+                pState->drag_dir = 1;
             }
         }
         

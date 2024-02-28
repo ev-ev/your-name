@@ -6,9 +6,10 @@
 
 #define ATOMIC_CHAR_ADD 1
 #define ATOMIC_CHAR_REMOVE 2
+#define ATOMIC_CHAR_REMOVE_MULTI 3
 struct ATOMIC_internal_history { 
     char action;
-    int data;
+    short data;
     struct llchar* ptr;
     struct llchar* cur;
 };
@@ -35,7 +36,7 @@ void ATOMIC_deleteAtomicStack(struct ATOMIC_internal_history_stack* stack) {
     free(stack);
 }
 
-void ATOMIC_internal_addElemToAtomicStack(struct ATOMIC_internal_history_stack** stack_ptr, char action, int data, struct llchar* ptr, struct llchar* cur){
+void ATOMIC_internal_addElemToAtomicStack(struct ATOMIC_internal_history_stack** stack_ptr, char action, short data, struct llchar* ptr, struct llchar* cur){
     struct ATOMIC_internal_history_stack* stack = *stack_ptr;
     if (stack->len + 1 > stack->size) {
         stack = realloc(*stack_ptr, sizeof(struct ATOMIC_internal_history_stack) + sizeof(struct ATOMIC_internal_history) * (stack->size + 25));
@@ -66,14 +67,34 @@ void ATOMIC_internal_addElemToAtomicStackMulti(struct ATOMIC_internal_history_st
    
 }
 
-struct llchar* ATOMIC_handleInputCharacter(struct ATOMIC_internal_history_stack** stack_ptr, WPARAM wParam, struct llchar* cur, int omitAdd) {
+struct llchar* ATOMIC_handleInputCharacter(struct ATOMIC_internal_history_stack** stack_ptr, WPARAM wParam, struct llchar* cur, int omitAdd, struct llchar* drag_from, int drag_dir) {
     switch (wParam)
     {
         case '\b': //Backspace
         {
-            if (!omitAdd && cur->prev) {
-                ATOMIC_internal_addElemToAtomicStack(stack_ptr, ATOMIC_CHAR_REMOVE, cur->ch, cur->prev, cur);
-                return LLCHAR_clear(cur);
+            if (!omitAdd) {
+                if (drag_from) {
+                    struct llchar* start = cur;
+                    struct llchar* end = cur;
+                    if (drag_dir == 1) {
+                        start = drag_from;
+                        end = cur;
+                    } else if (drag_dir == -1) {
+                        start = cur;
+                        end = drag_from;
+                    } else {
+                        printf("Atomic panic !!");
+                        __debugbreak();
+                    }
+                    //The idea is we disconnect the entire chain that we don't need right now, but can simply reconnect it back later when needed
+                    ATOMIC_internal_addElemToAtomicStack(stack_ptr, ATOMIC_CHAR_REMOVE_MULTI, 0, start, start->next);
+                    cur = UTILS_LLCHAR_clear_multi(start->next, end);
+                        
+                } else if (cur->prev) {
+                    ATOMIC_internal_addElemToAtomicStack(stack_ptr, ATOMIC_CHAR_REMOVE, 0, cur->prev, cur);
+                    cur = LLCHAR_clear(cur);
+                }
+                return cur;
             } else {
                 return LLCHAR_delete(cur);
             }
@@ -162,14 +183,16 @@ struct llchar* ATOMIC_popElemFromAtomicStack(struct ATOMIC_internal_history_stac
         if (page.action == ATOMIC_CHAR_ADD) {
             cur = page.ptr; //TODO: Rework this so it more efficiently just cuts out all the data.
             for (int i = 0; i < page.data; i++)
-                cur = ATOMIC_handleInputCharacter(stack_ptr, '\b', cur, 1);
+                cur = ATOMIC_handleInputCharacter(stack_ptr, '\b', cur, 1, 0, 0);
             return cur;
         }
         
         if (page.action == ATOMIC_CHAR_REMOVE) {
-            //printf("used ptr: %p\n",page.ptr);
             cur = UTILS_LLCHAR_insert(page.cur, page.ptr);
-            //return ATOMIC_handleInputCharacter(stack_ptr, page.data, cur, 1);
+        }
+        
+        if (page.action == ATOMIC_CHAR_REMOVE_MULTI) {
+            cur = UTILS_LLCHAR_insert_multi_all(page.cur, page.ptr);
         }
     }
     return cur;

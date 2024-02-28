@@ -23,6 +23,9 @@ struct StateInfo {
     int curY;
     
     int is_dragging;
+    int drag_dir;
+    int block_dragging; //This annoying little thing is required due to IFileDialog being bugged
+    int block_dragging_lparam;
     
     int curDt; //When traversing a file, store the location of the cursor
     int requireCursorUpdate; // Was cursor moved/character inputed?
@@ -69,11 +72,13 @@ struct mcinfo {
     int size;
     int freed;
     void* ptr;
+    int line;
+    char* file;
 };
 static int safe_malloc_list_i = 0;
 static struct mcinfo safe_malloc_list[999999];
 
-void* malloc_safe(int size) {
+void* malloc_safe(char* file, int line, int size) {
     void* ptr = malloc(size+4);
     int* magic = ptr + size;
     if (ptr){
@@ -84,12 +89,16 @@ void* malloc_safe(int size) {
                 found = 1;
                 safe_malloc_list[i].size = size;
                 safe_malloc_list[i].freed = 0;
+                safe_malloc_list[i].line = line;
+                safe_malloc_list[i].file = file;
             }
         }
         if (!found){
             safe_malloc_list[safe_malloc_list_i].size = size;
             safe_malloc_list[safe_malloc_list_i].freed = 0;
             safe_malloc_list[safe_malloc_list_i].ptr = ptr;
+            safe_malloc_list[safe_malloc_list_i].line = line;
+            safe_malloc_list[safe_malloc_list_i].file = file;
             safe_malloc_list_i += 1;
             if (safe_malloc_list_i == 999999)
                 printf("Ran out of space for future mallocs !!\n");
@@ -109,7 +118,7 @@ void* realloc_safe(void* ptr, int size) {
             found_ptr = 1;
             int* magic = safe_malloc_list[i].ptr + safe_malloc_list[i].size;
             if (!safe_malloc_list[i].freed && *magic != 1765027865) {
-                printf("Magic number broken for a pointer somewhere (realloc)!!\n");
+                printf("Magic number broken for a pointer somewhere (realloc) %s %d!!\n", safe_malloc_list[i].file, safe_malloc_list[i].line);
                 __debugbreak();
             }
             
@@ -129,6 +138,8 @@ void* realloc_safe(void* ptr, int size) {
                     found = 1;
                     safe_malloc_list[j].size = size;
                     safe_malloc_list[j].freed = 0;
+                    safe_malloc_list[j].file = safe_malloc_list[i].file;
+                    safe_malloc_list[j].line = safe_malloc_list[i].line;
                 }
             }
             
@@ -136,6 +147,8 @@ void* realloc_safe(void* ptr, int size) {
                 safe_malloc_list[safe_malloc_list_i].size = size;
                 safe_malloc_list[safe_malloc_list_i].freed = 0;
                 safe_malloc_list[safe_malloc_list_i].ptr = newptr;
+                safe_malloc_list[safe_malloc_list_i].file = safe_malloc_list[i].file;
+                safe_malloc_list[safe_malloc_list_i].line = safe_malloc_list[i].line;
                 safe_malloc_list_i += 1;
                 if (safe_malloc_list_i == 999999)
                     printf("Ran out of space for future mallocs !!\n");
@@ -152,17 +165,17 @@ void* realloc_safe(void* ptr, int size) {
     return newptr;
 }
 
-void free_safe(void* ptr) {
+void free_safe(char* file, int line, void* ptr) {
     //printf("free(%p)\n", ptr);
     for (int i = 0; i < safe_malloc_list_i; i++) {
         if (ptr == safe_malloc_list[i].ptr) {
             if (safe_malloc_list[i].freed) {
-                printf("Double freed pointer here !!!!\n");
+                printf("Double freed pointer %s %d here %s %d!!!!\n", safe_malloc_list[i].file, safe_malloc_list[i].line, file, line);
                 __debugbreak();
             } else {
                 int* magic = safe_malloc_list[i].ptr + safe_malloc_list[i].size;
                 if (!safe_malloc_list[i].freed && *magic != 1765027865) {
-                    printf("Magic number broken for a pointer somewhere (free)!!\n");
+                    printf("Magic number broken for a pointer somewhere (free) %s %d!!\n", safe_malloc_list[i].file, safe_malloc_list[i].line);
                     __debugbreak();
                 }
                 free(ptr);
@@ -173,21 +186,27 @@ void free_safe(void* ptr) {
     
 }
 
-int test_magic() {
+int test_magic(int stats) {
     int ok = 1;
+    if (stats)
+        printf("FILE\t\tLINE\tSZ\n");
     for (int i = 0; i < safe_malloc_list_i; i++) {
+        if (stats && !safe_malloc_list[i].freed && strncmp(safe_malloc_list[i].file, "text/utils.h", 12)) //Don't want to print 5 billion of these
+            printf("%s\t%d\t%d\n", safe_malloc_list[i].file, safe_malloc_list[i].line, safe_malloc_list[i].size);
         int* magic = safe_malloc_list[i].ptr + safe_malloc_list[i].size;
         if (!safe_malloc_list[i].freed && *magic != 1765027865) {
             ok = 0;
-            printf("Magic number broken for a pointer somewhere !!\n");
+            printf("Magic number broken for a pointer somewhere %s %d!!\n", safe_malloc_list[i].file, safe_malloc_list[i].line);
             __debugbreak();
         }
     }
+    if (stats)
+        printf("\n");
     return ok;
 }
-#define malloc malloc_safe
+#define malloc(...) malloc_safe(__FILE__, __LINE__, __VA_ARGS__)
 #define realloc realloc_safe
-#define free free_safe
+#define free(...) free_safe(__FILE__, __LINE__, __VA_ARGS__)
 #endif
 
 #endif

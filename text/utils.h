@@ -26,6 +26,28 @@ struct llchar* UTILS_LLCHAR_insert(struct llchar* ch, struct llchar* list) {
     return ch;
 }
 
+struct llchar* UTILS_LLCHAR_insert_multi_all(struct llchar* insert, struct llchar* list) {
+    struct llchar* end = insert;
+    while (end->next) {
+        end = end->next;
+    }
+    
+    if (list->next) {
+        insert->prev = list;
+        end->next = list->next;
+        
+        list->next->prev = end;
+        list->next = insert;
+        return insert;
+    }
+    
+    insert->prev = list;
+    //this function assumes end->next is zero to function
+    
+    list->next = insert;
+    return insert;
+}
+
 struct llchar* UTILS_LLCHAR_add(char ch, struct llchar* list){
     if (list->next) {
         struct llchar* oldnext = list->next;
@@ -109,6 +131,22 @@ struct llchar* UTILS_LLCHAR_addStrEx(char* st, size_t sz, struct llchar* list, c
     }
     return ptr;
 }
+//Uhhhhhhhhhhhhhhhhhhh
+int UTILS_LLCHAR_compare(struct llchar* a, struct llchar* b) {
+    struct llchar* aa = a;
+    while (a->next || aa->prev) {
+        if (a->next)
+            a = a->next;
+        if (aa->prev)
+            aa = aa->prev;
+        
+        if (a == b)
+            return 1;
+        if (aa == b)
+            return -1;
+    }
+    return 0;
+}
 
 int UTILS_LLCHAR_loadFile(struct llchar* head, wchar_t* fp_st){
     FILE* fp;
@@ -143,6 +181,23 @@ struct llchar* UTILS_LLCHAR_clear(struct llchar* list) {
     }
     list->ch = 0;
     return list;
+}
+
+struct llchar* UTILS_LLCHAR_clear_multi(struct llchar* a, struct llchar* b) {
+    struct llchar* prev = a->prev;
+    if (prev) { // Don't clear reserved entry
+        prev->next = b->next;
+        if (b->next)
+            b->next->prev = prev;
+        
+        b->next = 0;
+        
+        //printf("[-] Info, clear(%p)\n",list);
+        
+        return prev;
+    }
+    a->ch = 0;
+    return a;
 }
 
 struct llchar* UTILS_LLCHAR_delete(struct llchar* list) {
@@ -208,6 +263,15 @@ struct llchar* UTILS_LLCHAR_moveLines(struct llchar* cur, int lines) {
     return ptr;
 }
 
+int UTILS_LLCHAR_countTo(struct llchar* start, struct llchar* end) {
+    int result = 0;
+    while (start && start != end) {
+        start = start->next;
+        result += 1;
+    }
+    return result;
+}
+
 int UTILS_LLCHAR_countLines(struct llchar* head) {
     struct llchar* ptr = head;
     int lines = 1;
@@ -258,17 +322,21 @@ int UTILS_LLCHAR_to_pchar(struct llchar* head, char** ppchar){
 }
 
 #define LLCHAR_insert UTILS_LLCHAR_insert
+#define LLCHAR_insert_multi_all UTILS_LLCHAR_insert_multi_all
 #define LLCHAR_add UTILS_LLCHAR_add
 #define LLCHAR_addStr UTILS_LLCHAR_addStr
 #define LLCHAR_addStrEx UTILS_LLCHAR_addStrEx
 #define LLCHAR_delete UTILS_LLCHAR_delete
 #define LLCHAR_deleteAll1 UTILS_LLCHAR_deleteAll1
 #define LLCHAR_deleteAll2 UTILS_LLCHAR_deleteAll2
+#define LLCHAR_compare UTILS_LLCHAR_compare
 #define LLCHAR_loadFile UTILS_LLCHAR_loadFile
 #define LLCHAR_clear UTILS_LLCHAR_clear
+#define LLCHAR_clear_multi UTILS_LLCHAR_clear_multi
 #define LLCHAR_dumpA UTILS_LLCHAR_dumpA
 #define LLCHAR_dumpB UTILS_LLCHAR_dumpB
 #define LLCHAR_moveLines UTILS_LLCHAR_moveLines
+#define LLCHAR_countTo UTILS_LLCHAR_countTo
 #define LLCHAR_countLines UTILS_LLCHAR_countLines
 #define LLCHAR_countLinesTill UTILS_LLCHAR_countLinesTill
 #define LLCHAR_to_pchar UTILS_LLCHAR_to_pchar

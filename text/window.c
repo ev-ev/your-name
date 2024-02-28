@@ -97,7 +97,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         }
         case WM_TIMER:
         {
-            //pState->cursor_active = !pState->cursor_active;
+            pState->cursor_active = !pState->cursor_active;
             RECT rect;
             rect.top = pState->curY;
             rect.bottom = pState->curY + pState->font_height;
@@ -145,11 +145,12 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         {
             if (GetKeyState(VK_CONTROL) & 0x8000)
                 return 0;
-            pState->cur = ATOMIC_handleInputCharacter(&pState->history_stack, wParam, pState->cur, 0);
+            pState->cur = ATOMIC_handleInputCharacter(&pState->history_stack, wParam, pState->cur, 0, pState->drag_from, pState->drag_dir);
             pState->curDt = 0; //Request a refresh of current cursor in line position
             pState->requireCursorUpdate = 1;
             
             pState->drag_from = 0;
+            pState->drag_dir = 0;
             
             KillTimer(hwnd, 1);
             pState->cursor_active = 1;
@@ -169,6 +170,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                     }
                     
                     pState->drag_from = 0;
+                    pState->drag_dir = 0;
                     
                     pState->curDt = 0;
                     pState->requireCursorUpdate = 1;
@@ -185,6 +187,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                     pState->requireCursorUpdate = 1;
                     
                     pState->drag_from = 0;
+                    pState->drag_dir = 0;
                     
                     KillTimer(hwnd, 1);
                     pState->cursor_active = 1;
@@ -200,6 +203,16 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         {
             switch (wParam)
             {
+                case VK_SHIFT:
+                    if (!pState->is_dragging) {
+                        pState->drag_from = pState->cur;
+                        pState->is_dragging = 1;
+                        if (wParam == VK_LEFT || wParam == VK_UP)
+                            pState->drag_dir = -1;
+                        if (wParam == VK_RIGHT || wParam == VK_DOWN)
+                            pState->drag_dir = 1;
+                    }
+                //fall through
                 case VK_LEFT:
                 //fall through
                 case VK_RIGHT:
@@ -210,6 +223,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                     HDC dc = 0;
                     if (!pState->is_monospaced)
                         dc = GetWindowDC(hwnd);
+                    
                     pState->cur = KEYS_handleCursorMove(wParam, pState->cur, dc, pState->hNewFont, &pState->curDt);
                     break;
                 default:
@@ -217,12 +231,20 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             }
             pState->requireCursorUpdate = 1;
             
-            pState->drag_from = 0;
-            
+            if (!pState->is_dragging){ //If shift is not held reset the drag from
+                pState->drag_from = 0;
+                pState->drag_dir = 0;
+            }
             KillTimer(hwnd, 1);
             pState->cursor_active = 1;
             SetTimer(hwnd, 1, GetCaretBlinkTime(), 0);
             InvalidateRect(hwnd, NULL, 0);
+            return 0;
+        }
+        case WM_KEYUP:
+        {
+            if (wParam == VK_SHIFT && pState->is_dragging)
+                pState->is_dragging = 0;
             return 0;
         }
         
@@ -230,6 +252,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         {
             if (wParam == MK_LBUTTON) {
                 pState->drag_from = 0;
+                pState->drag_dir = 0;
                 if (GET_Y_LPARAM(lParam) > PAINT_MENU_RESERVED_SPACE){
                     pState->cur = MOUSE_processMouseDownInClientArea(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), pState->font_height, pState->scrollY, pState->head, hwnd, pState->hNewFont, &pState->line_alloc, &pState->line);
                     pState->requireCursorUpdate = 1;
@@ -252,7 +275,16 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                 MOUSE_processMouseOverMenu(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
             }
             
-            if (wParam == MK_LBUTTON) { //Dragging
+            if (pState->block_dragging) { //For some reason Ifiledialog likes to send this message....
+                if (!pState->block_dragging_lparam)
+                    pState->block_dragging_lparam = lParam;
+                if (pState->block_dragging_lparam != lParam) {
+                    pState->block_dragging = 0;
+                    pState->block_dragging_lparam = 0;
+                }
+            }
+            
+            if (wParam == MK_LBUTTON && !pState->block_dragging) { //Dragging
                 if (GET_Y_LPARAM(lParam) > PAINT_MENU_RESERVED_SPACE || GET_Y_LPARAM(lParam) < 0){
                     if (MOUSE_processMouseDragInClientArea(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), hwnd, pState)){
                         InvalidateRect(hwnd, NULL, 0);
@@ -430,7 +462,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         if (!TranslateAccelerator(winHwnd, hAccel, &msg)){
             TranslateMessage(&msg);
             #ifdef DBGM
-            test_magic();
+            if (LOWORD(msg.message) != WM_MOUSEMOVE){
+                test_magic(0);
+            }
             #endif
             //printf("filepath %ls\n",pState.fp);
             DispatchMessage(&msg);
