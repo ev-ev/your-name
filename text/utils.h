@@ -150,7 +150,7 @@ int UTILS_LLCHAR_compare(struct llchar* a, struct llchar* b) {
 
 int UTILS_LLCHAR_loadFile(struct llchar* head, wchar_t* fp_st){
     FILE* fp;
-    char ch = 0; //TODO, widechar unicode support n shit
+    int ch = 0; //TODO, widechar unicode support n shit
     
     fp = _wfopen(fp_st, L"r");
     if (!fp)
@@ -158,7 +158,7 @@ int UTILS_LLCHAR_loadFile(struct llchar* head, wchar_t* fp_st){
     
     ch = fgetc(fp);
     while (ch != EOF) {
-        head = UTILS_LLCHAR_add(ch, head);
+        head = UTILS_LLCHAR_add((char) ch, head);
         ch = fgetc(fp);
     }
     
