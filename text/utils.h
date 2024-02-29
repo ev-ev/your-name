@@ -321,6 +321,11 @@ int UTILS_LLCHAR_to_pchar(struct llchar* head, char** ppchar){
     return elem;
 }
 
+//This function will die in unicode
+int UTILS_LLCHAR_testIfIsLetter(struct llchar* ptr) {
+    return (ptr->ch >= 65 && ptr->ch <= 90 ) || (ptr->ch >= 97 && ptr->ch <= 122);
+}
+
 #define LLCHAR_insert UTILS_LLCHAR_insert
 #define LLCHAR_insert_multi_all UTILS_LLCHAR_insert_multi_all
 #define LLCHAR_add UTILS_LLCHAR_add
@@ -340,4 +345,5 @@ int UTILS_LLCHAR_to_pchar(struct llchar* head, char** ppchar){
 #define LLCHAR_countLines UTILS_LLCHAR_countLines
 #define LLCHAR_countLinesTill UTILS_LLCHAR_countLinesTill
 #define LLCHAR_to_pchar UTILS_LLCHAR_to_pchar
+#define LLCHAR_testIfIsLetter UTILS_LLCHAR_testIfIsLetter
 #endif

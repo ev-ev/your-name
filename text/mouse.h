@@ -208,4 +208,28 @@ int MOUSE_processMouseLUP(int x, int y, HWND hwnd, struct StateInfo* pState) {
     return 1;
 }
 
+int MOUSE_processDoubleClickInClientArea(struct StateInfo* pState) {
+    //First find the start of the word, then the end of the word
+    if (!LLCHAR_testIfIsLetter(pState->cur))
+        return 0;
+    
+    struct llchar* ptr = pState->cur;
+    while (ptr->prev && LLCHAR_testIfIsLetter(ptr)) {
+        ptr = ptr->prev;
+    }
+    pState->drag_from = ptr;
+    
+    ptr = pState->cur;
+    while (ptr->next && LLCHAR_testIfIsLetter(ptr)) {
+        ptr = ptr->next;
+    }
+    pState->cur = ptr->prev;
+    if (!ptr->next)
+        pState->cur = ptr;
+    
+    pState->drag_dir = 1;
+    
+    return 1;
+}
+
 #endif

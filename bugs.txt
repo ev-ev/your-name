@@ -1,8 +1,6 @@
 Bugs
 [-] Max chars on line then newline empty line
 [-] When resizing and scrollbar needs to be moved may flicker a bit
-[!] Program crashed at some point during testing on call to free(). Somewhere memory is being corrupted, to resolve this I have written some modules to send alerts when buffer is overrun somewhere. Hopefully this can be traced down and found.
-    **I do belive I fixed what was causing this but maintain vigillance !!
 
 Selected Target (if any)
 [!']text selection support
@@ -12,10 +10,9 @@ Targets
 [o]Implement all TEXTMETRIC infos
 [o]Non english support
 
+Note
+Please report any issues with text selection not selecting when needed-
 
 RESOLVED [?] = fixed by itself
-[+] Visual bug when scrolling on lagframes (probably because ScrollWindow does not target the buffer and instead targets the window directly) 
-[+] Out of view cursor renders on menubar
-[+] If scrolled with cursor at position 0, the cursor scrolls with the camera (visual bug)
-[+] After resizing need to scroll to return camera to proper position
-[+] When pressing Ctrl+backspace it makes weird input
+[!] Program crashed at some point during testing on call to free(). Somewhere memory is being corrupted, to resolve this I have written some modules to send alerts when buffer is overrun somewhere. Hopefully this can be traced down and found.
+    **I do belive I fixed what was causing this but maintain vigillance !!

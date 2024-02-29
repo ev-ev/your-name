@@ -67,6 +67,27 @@ void ATOMIC_internal_addElemToAtomicStackMulti(struct ATOMIC_internal_history_st
    
 }
 
+struct llchar* ATOMIC_delete_selection(struct ATOMIC_internal_history_stack** stack_ptr, struct llchar* cur, struct llchar* drag_from, int drag_dir) {
+    struct llchar* start = cur;
+    struct llchar* end = cur;
+    if (drag_dir == 1) {
+        start = drag_from;
+        end = cur;
+    } else if (drag_dir == -1) {
+        start = cur;
+        end = drag_from;
+    } else {
+        printf("Atomic panic !! (rejecting backspace input.., please report if behavior is not appropriate)\n");
+        return cur;
+    }
+    if (start != end){ //This if is required so that we don't call this for non selections
+        //The idea is we disconnect the entire chain that we don't need right now, but can simply reconnect it back later when needed
+        ATOMIC_internal_addElemToAtomicStack(stack_ptr, ATOMIC_CHAR_REMOVE_MULTI, 0, start, start->next);
+        cur = UTILS_LLCHAR_clear_multi(start->next, end);
+    }
+    return cur;
+}
+
 struct llchar* ATOMIC_handleInputCharacter(struct ATOMIC_internal_history_stack** stack_ptr, WPARAM wParam, struct llchar* cur, int omitAdd, struct llchar* drag_from, int drag_dir) {
     switch (wParam)
     {
@@ -74,22 +95,7 @@ struct llchar* ATOMIC_handleInputCharacter(struct ATOMIC_internal_history_stack*
         {
             if (!omitAdd) {
                 if (drag_from) {
-                    struct llchar* start = cur;
-                    struct llchar* end = cur;
-                    if (drag_dir == 1) {
-                        start = drag_from;
-                        end = cur;
-                    } else if (drag_dir == -1) {
-                        start = cur;
-                        end = drag_from;
-                    } else {
-                        printf("Atomic panic !!");
-                        __debugbreak();
-                    }
-                    //The idea is we disconnect the entire chain that we don't need right now, but can simply reconnect it back later when needed
-                    ATOMIC_internal_addElemToAtomicStack(stack_ptr, ATOMIC_CHAR_REMOVE_MULTI, 0, start, start->next);
-                    cur = UTILS_LLCHAR_clear_multi(start->next, end);
-                        
+                    cur = ATOMIC_delete_selection(stack_ptr, cur, drag_from, drag_dir);
                 } else if (cur->prev) {
                     ATOMIC_internal_addElemToAtomicStack(stack_ptr, ATOMIC_CHAR_REMOVE, 0, cur->prev, cur);
                     cur = LLCHAR_clear(cur);
@@ -105,9 +111,12 @@ struct llchar* ATOMIC_handleInputCharacter(struct ATOMIC_internal_history_stack*
         }
         case '\t':
         {
+            if (!omitAdd && drag_from)
+                cur = ATOMIC_delete_selection(stack_ptr, cur, drag_from, drag_dir);
             struct llchar* ptr = LLCHAR_addStr("    ", 4, cur);
-            if (!omitAdd)
+            if (!omitAdd){
                 ATOMIC_internal_addElemToAtomicStack(stack_ptr, ATOMIC_CHAR_ADD, 4, ptr, 0);
+            }
             if (!ptr){
                 printf("Out of memory !");
                 break;
@@ -122,6 +131,8 @@ struct llchar* ATOMIC_handleInputCharacter(struct ATOMIC_internal_history_stack*
             //if (HIBYTE(GetKeyState(VK_CONTROL))) { //Control symbols fuck up input
             //    break;
             //} //Commented out cuz like ctrl Z and stuf flol
+            if (!omitAdd && drag_from)
+                cur = ATOMIC_delete_selection(stack_ptr, cur, drag_from, drag_dir);
             struct llchar* ptr = LLCHAR_add(wParam, cur);
             if (!omitAdd){
                 ATOMIC_internal_addElemToAtomicStack(stack_ptr, ATOMIC_CHAR_ADD, 1, ptr, 0);

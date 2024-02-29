@@ -204,7 +204,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             switch (wParam)
             {
                 case VK_SHIFT:
-                    if (!pState->is_dragging) {
+                    if (!pState->drag_from) {
                         pState->drag_from = pState->cur;
                         pState->is_dragging = 1;
                         if (wParam == VK_LEFT || wParam == VK_UP)
@@ -220,6 +220,12 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                 case VK_UP:
                 //fall through
                 case VK_DOWN:
+                    if (pState->drag_from && !(GetKeyState(VK_SHIFT) & 0x8000)) {
+                        pState->drag_from = 0;
+                        pState->drag_dir = 0;
+                        pState->is_dragging = 0;
+                        break;
+                    }
                     HDC dc = 0;
                     if (!pState->is_monospaced)
                         dc = GetWindowDC(hwnd);
@@ -231,20 +237,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             }
             pState->requireCursorUpdate = 1;
             
-            if (!pState->is_dragging){ //If shift is not held reset the drag from
-                pState->drag_from = 0;
-                pState->drag_dir = 0;
-            }
             KillTimer(hwnd, 1);
             pState->cursor_active = 1;
             SetTimer(hwnd, 1, GetCaretBlinkTime(), 0);
             InvalidateRect(hwnd, NULL, 0);
-            return 0;
-        }
-        case WM_KEYUP:
-        {
-            if (wParam == VK_SHIFT && pState->is_dragging)
-                pState->is_dragging = 0;
             return 0;
         }
         
@@ -266,6 +262,14 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                         InvalidateRect(hwnd, NULL, 0);
                     }
                 }
+            }
+            return 0;
+        }
+        case WM_LBUTTONDBLCLK:
+        {
+            if (GET_Y_LPARAM(lParam) > PAINT_MENU_RESERVED_SPACE){
+                if (MOUSE_processDoubleClickInClientArea(pState))
+                    InvalidateRect(hwnd, NULL, 0);
             }
             return 0;
         }
@@ -386,7 +390,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     wc.hCursor = LoadCursor(0, IDC_ARROW);
     wc.hIcon = LoadIcon(0, IDI_WINLOGO);
     wc.lpszMenuName = 0;
-    wc.style = 0;
+    wc.style = CS_DBLCLKS;
     wc.hbrBackground = 0;
     wc.lpfnWndProc = WindowProc;
     wc.hInstance = hInstance;
