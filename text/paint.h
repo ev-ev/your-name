@@ -171,6 +171,10 @@ int PAINT_renderMainWindow(HWND hwnd,struct StateInfo* pState){
                 }
                 
                 TabbedTextOut(hdcM, text_rect.left, (current) * font_height + text_rect.top, lpWideCharStr, line_sz, 0, 0, 0);  
+            } else {
+                if (draw_select && draw_select_ed)
+                    draw_select = 0;
+                draw_select_st = 0;
             }
             
             line_sz = 0;

@@ -194,6 +194,15 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                     SetTimer(hwnd, 1, GetCaretBlinkTime(), 0);
                     
                     InvalidateRect(hwnd, NULL, 0);
+                    break;
+                }
+                case 'A':
+                {
+                    pState->drag_from = pState->head;
+                    pState->drag_dir = 1;
+                    while (pState->cur->next)
+                        pState->cur = pState->cur->next;
+                    InvalidateRect(hwnd, NULL, 0);
                 }
             }
             
