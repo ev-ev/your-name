@@ -203,6 +203,12 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                     while (pState->cur->next)
                         pState->cur = pState->cur->next;
                     InvalidateRect(hwnd, NULL, 0);
+                    break;
+                }
+                case 'S':
+                {
+                    if (MOUSE_processMouseDownInMenu(24 * 2, 0, hwnd, pState))
+                        InvalidateRect(hwnd, NULL, 0);
                 }
             }
             
@@ -435,15 +441,16 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     }
     
     //Make 'accelerator' table
-    ACCEL paccel[6];
+    ACCEL paccel[7];
     paccel[0].fVirt = FVIRTKEY | FCONTROL; paccel[0].key = 'C'; paccel[0].cmd = 'C';
     paccel[1].fVirt = FVIRTKEY | FCONTROL; paccel[1].key = 'V'; paccel[1].cmd = 'V';
     paccel[2].fVirt = FVIRTKEY | FCONTROL; paccel[2].key = 'X'; paccel[2].cmd = 'X';
     paccel[3].fVirt = FVIRTKEY | FCONTROL; paccel[3].key = 'A'; paccel[3].cmd = 'A';
     paccel[4].fVirt = FVIRTKEY | FCONTROL; paccel[4].key = 'Z'; paccel[4].cmd = 'Z';
     paccel[5].fVirt = FVIRTKEY | FCONTROL; paccel[5].key = 'Y'; paccel[5].cmd = 'Y';
+    paccel[6].fVirt = FVIRTKEY | FCONTROL; paccel[6].key = 'S'; paccel[6].cmd = 'S';
     
-    HACCEL hAccel = CreateAcceleratorTable(paccel, 6);
+    HACCEL hAccel = CreateAcceleratorTable(paccel, 7);
     if (!hAccel) {
         printf("Error creating accelerator table %ld", GetLastError());
         return 0;

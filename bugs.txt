@@ -3,10 +3,11 @@ Bugs
 [-] When resizing and scrollbar needs to be moved may flicker a bit
 
 Selected Target (if any)
-[!']text selection support
+>Finally work on the fonts system.
 
 Targets
 [/]Redo
+[+]Implemenent more accelerators
 [o]Implement all TEXTMETRIC infos
 [o]Non english support
 
