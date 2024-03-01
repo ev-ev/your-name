@@ -1,6 +1,6 @@
 # your-name
 
-Your name is a text editor written in C for windows using Windows API. Planning to make it into a WYSISYG markdown editor in the future :)) Check out the video demo below !
+Your name is a text editor written in C for windows using Windows API. Planning to make it into a WYSIWYG markdown editor in the future :)) Check out the video demo below !
 
 
 
