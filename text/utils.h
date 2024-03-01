@@ -320,6 +320,35 @@ int UTILS_LLCHAR_to_pchar(struct llchar* head, char** ppchar){
     }
     return elem;
 }
+int UTILS_LLCHAR_from_to_pchar(struct llchar* from, struct llchar* to, char** ppchar){
+    int pcharalloc = 25;
+    int i = 0;
+    char* pchar = malloc(pcharalloc * sizeof(from->ch));
+    
+    if (!pchar)
+        return 0;
+    while (from && from != to) {
+        if (i + 2 == pcharalloc) { //Reserve one for later
+            pcharalloc += 25;
+            char* tmp = realloc(pchar, pcharalloc * sizeof(from->ch));
+            if (!tmp) {
+                free(pchar);
+                return 0;
+            }
+            pchar = tmp;
+        }
+        pchar[i] = from->ch;
+        i += 1;
+        from = from->next;
+    }
+    if (from) {
+        pchar[i] = from->ch;
+        i += 1;
+    }
+    *ppchar = pchar;
+    
+    return i;
+}
 
 //This function will die in unicode
 int UTILS_LLCHAR_testIfIsLetter(struct llchar* ptr) {

@@ -177,6 +177,33 @@ int MOUSE_processMouseDownInMenu(int x, int y, HWND hwnd, struct StateInfo* pSta
             DestroyWindow(hwnd);
             break;
         }
+        case 5: //Settings
+        {
+            CHOOSEFONT cf = {0};
+            cf.lStructSize = sizeof(CHOOSEFONT);
+            cf.hwndOwner = hwnd;
+            cf.lpLogFont = &pState->selected_logfont;
+            cf.iPointSize = 1; //What is this member
+            cf.Flags = CF_INITTOLOGFONTSTRUCT;
+            cf.nFontType = SCREEN_FONTTYPE;
+            
+            ChooseFont(&cf);
+            
+            DeleteObject(pState->hNewFont);
+            pState->hNewFont = CreateFontIndirect(&pState->selected_logfont);
+            
+            HFONT hOldFont = (HFONT)SelectObject(pState->hdcM, pState->hNewFont);
+            
+            TEXTMETRIC lptm;
+            GetTextMetrics(pState->hdcM, &lptm);
+            pState->font_height = lptm.tmHeight + lptm.tmExternalLeading;
+            pState->font_max_width = lptm.tmMaxCharWidth;
+            pState->font_av_width = lptm.tmAveCharWidth;
+            
+            SelectObject(pState->hdcM, hOldFont);
+            
+            break;
+        }
     }
     return 0;
 }
@@ -203,6 +230,10 @@ int MOUSE_processMouseDragInClientArea(int x, int y, HWND hwnd, struct StateInfo
 int MOUSE_processMouseLUP(int x, int y, HWND hwnd, struct StateInfo* pState) {
     if (pState->is_dragging) {
         ReleaseCapture();
+        if (pState->drag_from == pState->cur) {
+            pState->drag_from = 0;
+            pState->drag_dir = 0;
+        }
         pState->is_dragging = 0;
     }
     return 1;

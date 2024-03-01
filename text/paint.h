@@ -66,6 +66,7 @@ int PAINT_renderMainWindow(HWND hwnd,struct StateInfo* pState){
     else
         DrawIconEx(hdcM, 24*2, 3, iconList[2], 24 , 24 , 0, 0, DI_NORMAL);
     DrawIconEx(hdcM, 24*3+4, 3+4, iconList[4], 16 , 16 , 0, 0, DI_NORMAL);
+    DrawIconEx(hdcM, 24*5, 3, iconList[5], 24 , 24 , 0, 0, DI_NORMAL);
     
     HPEN hPenOld = SelectObject(hdcM, hPenNew);
     MoveToEx(hdcM, menu_rect.left, menu_rect.bottom, 0);
@@ -78,7 +79,7 @@ int PAINT_renderMainWindow(HWND hwnd,struct StateInfo* pState){
     SetMapMode(hdcM, MM_TEXT); //Ensure map mode is pixel to pixel
     //Divide available space into rows for drawing text
     
-    size_t current = -scrollY;
+    int current = -scrollY;
     
     if (!line){
         pState->line_alloc = (text_rect.right - text_rect.left)/(font_width) + 10;
@@ -154,7 +155,7 @@ int PAINT_renderMainWindow(HWND hwnd,struct StateInfo* pState){
         ptr->wrapped = sz.cx > (text_rect.right - text_rect.left - 15) || ptr->ch == '\n';
         if (ptr->wrapped || !ptr->next || sz.cx > (text_rect.right - text_rect.left - 15)) { // 15 is right margin
             //Check if in rendersquare then render
-            if ((current) * font_height + font_height + text_rect.top >= ps.rcPaint.top && (current) * font_height + text_rect.top <= ps.rcPaint.bottom && (current) * font_height + font_height > 0){
+            if ((current) * font_height + font_height + text_rect.top >= ps.rcPaint.top && (current) * font_height + text_rect.top <= ps.rcPaint.bottom && (current) * font_height >= 0){
                 if (draw_select) {
                     RECT hyrect;
                     hyrect.top = (current) * font_height + text_rect.top;
@@ -169,7 +170,6 @@ int PAINT_renderMainWindow(HWND hwnd,struct StateInfo* pState){
                     FillRect(hdcM, &hyrect, (HBRUSH) COLOR_HIGHLIGHT);
                     draw_select_st = 0; //Next lines are dragged from zero
                 }
-                
                 TabbedTextOut(hdcM, text_rect.left, (current) * font_height + text_rect.top, lpWideCharStr, line_sz, 0, 0, 0);  
             } else {
                 if (draw_select && draw_select_ed)

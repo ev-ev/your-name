@@ -3,7 +3,7 @@
 
 #define LLCHAR_HEAD_RESERVED_CHAR 0
 #define PAINT_MENU_RESERVED_SPACE 30
-#define ICON_AMOUNT 5
+#define ICON_AMOUNT 6
 #define CLKS() clock_t start = clock(), diff; 
 #define CLKE() diff = clock() - start; int msec = diff * 1000 / CLOCKS_PER_SEC; printf("Time taken %d seconds %d milliseconds\n", msec/1000, msec%1000);
 
@@ -62,11 +62,11 @@ struct StateInfo {
     HBITMAP hbmM;
     HPEN hPenNew;
     HFONT hNewFont;
+    LOGFONT selected_logfont;
     HICON iconList[ICON_AMOUNT];
     SCROLLINFO scroll_info;
 };
 
-#define DBGM //Comment this out in release
 #ifdef DBGM
 struct mcinfo {
     int size;

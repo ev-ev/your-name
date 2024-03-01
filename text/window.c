@@ -43,12 +43,11 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             
             //Create font for text
             HFONT hFont = GetStockObject(DEFAULT_GUI_FONT);
-            LOGFONT logfont;
-            GetObject(hFont, sizeof(LOGFONT), &logfont);
+            GetObject(hFont, sizeof(pState->selected_logfont), &pState->selected_logfont);
             
-            logfont.lfHeight = pState->font_size;
+            pState->selected_logfont.lfHeight = pState->font_size;
             
-            pState->hNewFont = CreateFontIndirect(&logfont);
+            pState->hNewFont = CreateFontIndirect(&pState->selected_logfont);
             
             HFONT hOldFont = (HFONT)SelectObject(pState->hdcM, pState->hNewFont);
             
@@ -58,7 +57,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             pState->font_max_width = lptm.tmMaxCharWidth;
             pState->font_av_width = lptm.tmAveCharWidth;
             
-            SelectObject(pState->hdcM, hOldFont); //Why reset back the font ?
+            SelectObject(pState->hdcM, hOldFont);
             
             //Read file
             //:3
@@ -80,6 +79,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             pState->iconList[3] = sii.hIcon;
             SHGetStockIconInfo(SIID_ERROR, SHGSI_ICON, &sii);
             pState->iconList[4] = sii.hIcon;
+            SHGetStockIconInfo(SIID_RENAME, SHGSI_ICON, &sii);
+            pState->iconList[5] = sii.hIcon;
             
             return 0;
         }
@@ -196,6 +197,13 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                     InvalidateRect(hwnd, NULL, 0);
                     break;
                 }
+                case 'C':
+                {
+                    if (KEYS_copySelectedText(pState)) {
+                        InvalidateRect(hwnd, NULL, 0);
+                    }
+                    break;
+                }
                 case 'A':
                 {
                     pState->drag_from = pState->head;
@@ -256,6 +264,15 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             pState->cursor_active = 1;
             SetTimer(hwnd, 1, GetCaretBlinkTime(), 0);
             InvalidateRect(hwnd, NULL, 0);
+            return 0;
+        }
+        case WM_KEYUP:
+        {
+            if (wParam == VK_SHIFT && pState->drag_from == pState->cur) {
+                pState->drag_from = 0;
+                pState->drag_dir = 0;
+                pState->is_dragging = 0;
+            }
             return 0;
         }
         

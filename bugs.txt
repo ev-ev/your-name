@@ -1,6 +1,7 @@
 Bugs
 [-] Max chars on line then newline empty line
 [-] When resizing and scrollbar needs to be moved may flicker a bit
+[!] Too small font size goes up ??
 
 Selected Target (if any)
 >Finally work on the fonts system.
@@ -8,8 +9,8 @@ Selected Target (if any)
 Targets
 [/]Redo
 [+]Implemenent more accelerators
-[o]Implement all TEXTMETRIC infos
 [o]Non english support
+>Implement all TEXTMETRIC infos
 
 Note
 Please report any issues with text selection not selecting when needed-

@@ -256,4 +256,31 @@ struct llchar* KEYS_handleCursorMove(WPARAM wParam, struct llchar* cur, HDC dc, 
     return cur;
 }
 
+int KEYS_copySelectedText(struct StateInfo* pState) {
+    int elem = 0;
+    char* pchar = 0;
+    if (pState->drag_dir == 1) {
+        elem = UTILS_LLCHAR_from_to_pchar(pState->drag_from->next, pState->cur, &pchar);
+    } else if (pState->drag_dir == -1) {
+        elem = UTILS_LLCHAR_from_to_pchar(pState->cur->next, pState->drag_from, &pchar);
+    } else {
+        return 0;
+    }
+    
+    HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, elem + 1);
+    char* phMem = (char*) GlobalLock(hMem);
+    memcpy(phMem, pchar, elem);
+    phMem[elem] = 0;
+    GlobalUnlock(hMem);
+    if (!OpenClipboard(0)) {
+        printf("Error opening clipboard");
+        return 0;
+    }
+    EmptyClipboard();
+    SetClipboardData(CF_TEXT, hMem);
+    CloseClipboard();
+    
+    return 1;
+}
+
 #endif
