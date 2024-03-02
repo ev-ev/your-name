@@ -194,10 +194,17 @@ int MOUSE_processMouseDownInMenu(int x, int y, HWND hwnd, struct StateInfo* pSta
             cf.Flags = CF_INITTOLOGFONTSTRUCT;
             cf.nFontType = SCREEN_FONTTYPE;
             
-            ChooseFont(&cf);
-            
+            if (!ChooseFont(&cf)){
+                break;
+            }
             DeleteObject(pState->hNewFont);
+            
+            pState->font_size = pState->selected_logfont.lfHeight;
+            pState->selected_logfont.lfHeight *= pState->dpi_scale;
+            
             pState->hNewFont = CreateFontIndirect(&pState->selected_logfont);
+            
+            pState->selected_logfont.lfHeight = pState->font_size;
             
             HFONT hOldFont = (HFONT)SelectObject(pState->hdcM, pState->hNewFont);
             

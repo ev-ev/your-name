@@ -54,6 +54,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             
             pState->hNewFont = CreateFontIndirect(&pState->selected_logfont);
             
+            pState->selected_logfont.lfHeight = pState->font_size;
+            
             HFONT hOldFont = (HFONT)SelectObject(pState->hdcM, pState->hNewFont);
             
             TEXTMETRIC lptm;
@@ -414,6 +416,41 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             
             return 0;
         }
+        case WM_DPICHANGED:
+        {
+            pState->dpi_scale = HIWORD(wParam) / 96.0;
+            //Regenerate font
+            GetObject(pState->hNewFont, sizeof(pState->selected_logfont), &pState->selected_logfont);
+            DeleteObject(pState->hNewFont);
+            
+            pState->selected_logfont.lfHeight = pState->font_size * pState->dpi_scale;
+            
+            pState->hNewFont = CreateFontIndirect(&pState->selected_logfont);
+            
+            pState->selected_logfont.lfHeight = pState->font_size;
+            
+            HFONT hOldFont = (HFONT)SelectObject(pState->hdcM, pState->hNewFont);
+            
+            TEXTMETRIC lptm;
+            GetTextMetrics(pState->hdcM, &lptm);
+            pState->font_height = lptm.tmHeight + lptm.tmExternalLeading;
+            pState->font_max_width = lptm.tmMaxCharWidth;
+            pState->font_av_width = lptm.tmAveCharWidth;
+            
+            SelectObject(pState->hdcM, hOldFont);
+            
+            //Resize window
+            
+            RECT* const new_window = (RECT*)lParam;
+            SetWindowPos(hwnd, NULL, 
+                new_window->left,
+                new_window ->top,
+                new_window->right-new_window->left,
+                new_window->bottom-new_window->top,
+                SWP_NOZORDER | SWP_NOACTIVATE);
+            
+            return 0;
+        }
     }
     return DefWindowProc(hwnd, uMsg, wParam, lParam);
 }
@@ -436,7 +473,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     
     struct StateInfo pState = {0};
     pState.cursor_active = 0;
-    pState.font_size = 25;
+    pState.font_size = -25;
     pState.is_monospaced = 0;
     pState.idTimer = -1;
     
