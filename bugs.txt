@@ -1,16 +1,19 @@
 Bugs
 [-] Max chars on line then newline empty line
 [-] When resizing and scrollbar needs to be moved may flicker a bit
-[!] Too small font size goes up ??
+
 
 Selected Target (if any)
->Finally work on the fonts system.
+
 
 Targets
 [/]Redo
 [+]Implemenent more accelerators
 [o]Non english support
 >Implement all TEXTMETRIC infos
+>Save a config/settings file
+>New tabs
+>Make the first step towards WYSIWYG (add a way to have markers for font type and stuff in text.)
 
 Note
 Please report any issues with text selection not selecting when needed-
@@ -18,3 +21,4 @@ Please report any issues with text selection not selecting when needed-
 RESOLVED [?] = fixed by itself
 [!] Program crashed at some point during testing on call to free(). Somewhere memory is being corrupted, to resolve this I have written some modules to send alerts when buffer is overrun somewhere. Hopefully this can be traced down and found.
     **I do belive I fixed what was causing this but maintain vigillance !!
+[+] Too small font size goes up

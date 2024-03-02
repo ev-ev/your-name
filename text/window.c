@@ -252,7 +252,6 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                     HDC dc = 0;
                     if (!pState->is_monospaced)
                         dc = GetWindowDC(hwnd);
-                    
                     pState->cur = KEYS_handleCursorMove(wParam, pState->cur, dc, pState->hNewFont, &pState->curDt);
                     break;
                 default:
@@ -260,7 +259,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             }
             pState->requireCursorUpdate = 1;
             
-            KillTimer(hwnd, 1);
+            KillTimer(hwnd, 1); //WTF is this archaic ahh model
             pState->cursor_active = 1;
             SetTimer(hwnd, 1, GetCaretBlinkTime(), 0);
             InvalidateRect(hwnd, NULL, 0);
