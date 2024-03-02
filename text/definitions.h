@@ -22,6 +22,8 @@ struct StateInfo {
     int curX; //Stored location of cursor to be drawn. This is required for animating the cursor flashing so redrawing all the text is not required.
     int curY;
     
+    float dpi_scale;
+    
     int is_dragging;
     int drag_dir;
     int block_dragging; //This annoying little thing is required due to IFileDialog being bugged

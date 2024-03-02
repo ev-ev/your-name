@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <windows.h>
 #include <windowsx.h>
+#include <shellscalingapi.h>
 #include <time.h>
 
 #include "definitions.h"
@@ -24,6 +25,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             pState = (struct StateInfo*) pCreate->lpCreateParams;
             SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR) pState);
             
+            //Get DPI scaling
+            float dpi_scale = GetDpiForWindow(hwnd) / 96.0;
+            pState->dpi_scale = dpi_scale;
+            
             //Make the carret blink
             SetTimer(hwnd, pState->idTimer = 1, GetCaretBlinkTime(), 0);
             
@@ -45,7 +50,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             HFONT hFont = GetStockObject(DEFAULT_GUI_FONT);
             GetObject(hFont, sizeof(pState->selected_logfont), &pState->selected_logfont);
             
-            pState->selected_logfont.lfHeight = pState->font_size;
+            pState->selected_logfont.lfHeight = pState->font_size * dpi_scale;
             
             pState->hNewFont = CreateFontIndirect(&pState->selected_logfont);
             
@@ -337,10 +342,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         {
             short units = -(short)HIWORD(wParam) / WHEEL_DELTA * 3;   
             if (pState->scrollY + units < 0) {
-                units = 0 - pState->scrollY;
+                //units = 0 - pState->scrollY;
                 pState->scrollY = 0;
             } else if (pState->scrollY + units > pState->totalLines - 1) {
-                units = pState->totalLines - pState->scrollY - 1;
+                //units = pState->totalLines - pState->scrollY - 1;
                 pState->scrollY = pState->totalLines - 1;
             } else {
                 pState->scrollY += units;
@@ -472,6 +477,18 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         return 0;
     }
     
+    //DPI
+    //By default we are PROCESS_DPI_UNAWARE
+    if (!SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2)) {
+        printf("Setting DPI V2 failed, defaulting to V1\n");
+        if (!SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE)) {
+            printf("Setting DPI V1 failed, defaulting to System DPI\n");
+            if (!SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_SYSTEM_AWARE)) {
+                printf("Setting DPI completely failed, expect blurry window");
+            }
+        }
+    }
+    
     HWND winHwnd = CreateWindowEx(
         0,
         CLASS_NAME,
@@ -484,7 +501,11 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         NULL,   //Menu
         hInstance,
         &pState    //Additional data
-        );
+    );
+    
+    //DPI part 2
+    //int window_dpi = GetDpiForWindow(hwnd);
+    //int dpi_scaled = MulDiv(CW_USEDEFAULT, window_dpi, USER_DEFAULT_SCREEN_DPI);
         
     if (winHwnd == NULL){
         system("PAUSE");

@@ -175,6 +175,10 @@ struct llchar* UTILS_LLCHAR_clear(struct llchar* list) {
         if (list->next)
             list->next->prev = prev;
         
+        //I belive the line below missing was causing a crash due to atomic free freeing the whole list
+        //Resulting in a double free
+        list->next = 0;
+        
         //printf("[-] Info, clear(%p)\n",list);
         
         return prev;

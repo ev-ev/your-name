@@ -22,7 +22,7 @@ struct llchar* MOUSE_processMouseDownInClientArea(int x, int y, int font_height,
     LPWSTR lpWideCharStr = malloc(lpWideSz);
     size_t line_sz = 0;
     SIZE sz = {0};
-    SIZE last_sz = {0};
+    SIZE last_sz;
     while(ptr->next && !ptr->next->wrapped) {
         ptr = ptr->next;
         if (!ptr->wrapped) {
@@ -31,7 +31,13 @@ struct llchar* MOUSE_processMouseDownInClientArea(int x, int y, int font_height,
                 *state_line = line;
                 *state_line_alloc *= 2;
                 
-                lpWideCharStr = realloc(lpWideCharStr, *state_line_alloc * 6);
+                LPWSTR plpWideCharStr = realloc(lpWideCharStr, *state_line_alloc * 6);
+                if (!plpWideCharStr) {
+                    printf("PANIC!! ran out of memory");
+                    line_sz -= 1;
+                } else {
+                    lpWideCharStr = plpWideCharStr;
+                }
             }
             line[line_sz] = ptr->ch;
             line_sz += 1;
@@ -80,7 +86,8 @@ void MOUSE_freeAllData(struct StateInfo* pState){
 }
 
 int MOUSE_processMouseDownInMenu(int x, int y, HWND hwnd, struct StateInfo* pState){
-    switch (x/24)
+    int button_id = x/(24 * pState->dpi_scale);
+    switch (button_id)
     {
         case 0: //New document
         {
@@ -220,8 +227,9 @@ int MOUSE_processMouseDragInClientArea(int x, int y, HWND hwnd, struct StateInfo
     }
     
     struct llchar* ptr = MOUSE_processMouseDownInClientArea(x, y, pState->font_height, pState->scrollY, pState->head, hwnd, pState->hNewFont, &pState->line_alloc, &pState->line);
-    if (pState->cur != ptr)
-        pState->requireCursorUpdate = 1;
+    if (pState->cur == ptr)
+        return 0;
+    pState->requireCursorUpdate = 1;
     pState->cur = ptr;
 
     return 1;

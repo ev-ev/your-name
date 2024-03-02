@@ -18,6 +18,7 @@ int PAINT_renderMainWindow(HWND hwnd,struct StateInfo* pState){
     SCROLLINFO scroll_info = pState->scroll_info;
     struct ATOMIC_internal_history_stack* history_stack = pState->history_stack;
     int hsswls = pState->history_stack_size_when_last_saved;
+    float dpi_scale = pState->dpi_scale;
     
     PAINTSTRUCT ps;
     HDC hdc = BeginPaint(hwnd, &ps);
@@ -26,8 +27,8 @@ int PAINT_renderMainWindow(HWND hwnd,struct StateInfo* pState){
     RECT rect; GetClientRect(hwnd, &rect);
     RECT text_rect = rect;
     RECT menu_rect = rect;
-    text_rect.top = PAINT_MENU_RESERVED_SPACE + 1;
-    menu_rect.bottom = PAINT_MENU_RESERVED_SPACE;
+    text_rect.top = PAINT_MENU_RESERVED_SPACE * dpi_scale + 1;
+    menu_rect.bottom = PAINT_MENU_RESERVED_SPACE * dpi_scale;
     
     int max_chars = (text_rect.bottom - text_rect.top) / font_height;
     
@@ -59,14 +60,14 @@ int PAINT_renderMainWindow(HWND hwnd,struct StateInfo* pState){
     //MENU START!!
     
     FillRect(hdcM, &menu_rect, (HBRUSH) (COLOR_MENU));
-    DrawIconEx(hdcM, 0, 3, iconList[0], 24 , 24 , 0, 0, DI_NORMAL);
-    DrawIconEx(hdcM, 24, 3, iconList[1], 24 , 24 , 0, 0, DI_NORMAL);
+    DrawIconEx(hdcM, 0 * dpi_scale, 3 * dpi_scale, iconList[0], 24 * dpi_scale , 24 * dpi_scale, 0, 0, DI_NORMAL);
+    DrawIconEx(hdcM, 24 * dpi_scale, 3 * dpi_scale, iconList[1], 24 * dpi_scale, 24 * dpi_scale, 0, 0, DI_NORMAL);
     if (history_stack->len == hsswls)
-        DrawIconEx(hdcM, 24*2, 3, iconList[3], 24 , 24 , 0, 0, DI_NORMAL);
+        DrawIconEx(hdcM, 24*2 * dpi_scale, 3 * dpi_scale, iconList[3], 24 * dpi_scale, 24 * dpi_scale, 0, 0, DI_NORMAL);
     else
-        DrawIconEx(hdcM, 24*2, 3, iconList[2], 24 , 24 , 0, 0, DI_NORMAL);
-    DrawIconEx(hdcM, 24*3+4, 3+4, iconList[4], 16 , 16 , 0, 0, DI_NORMAL);
-    DrawIconEx(hdcM, 24*5, 3, iconList[5], 24 , 24 , 0, 0, DI_NORMAL);
+        DrawIconEx(hdcM, 24*2 * dpi_scale, 3 * dpi_scale, iconList[2], 24 * dpi_scale, 24 * dpi_scale, 0, 0, DI_NORMAL);
+    DrawIconEx(hdcM, (24*3+4) * dpi_scale, (3+4) * dpi_scale, iconList[4], 16 * dpi_scale, 16 * dpi_scale, 0, 0, DI_NORMAL);
+    DrawIconEx(hdcM, 24*5 * dpi_scale, 3 * dpi_scale, iconList[5], 24 * dpi_scale, 24 * dpi_scale, 0, 0, DI_NORMAL);
     
     HPEN hPenOld = SelectObject(hdcM, hPenNew);
     MoveToEx(hdcM, menu_rect.left, menu_rect.bottom, 0);
@@ -104,7 +105,13 @@ int PAINT_renderMainWindow(HWND hwnd,struct StateInfo* pState){
                 pState->line = line;
                 pState->line_alloc *= 2;
                 
-                lpWideCharStr = realloc(lpWideCharStr, pState->line_alloc * 6);
+                LPWSTR plpWideCharStr = realloc(lpWideCharStr, pState->line_alloc * 6);
+                if (!plpWideCharStr) {
+                    printf("PANIC!! ran out of memory");
+                    line_sz -= 1;
+                } else {
+                    lpWideCharStr = plpWideCharStr;
+                }
             }
             line[line_sz] = ptr->ch;
             line_sz += 1;
@@ -208,7 +215,7 @@ int PAINT_renderMainWindow(HWND hwnd,struct StateInfo* pState){
     
     //Draw cursor
     if (cursor_active && pState->curY >= text_rect.top){
-        HPEN hPenOld = SelectObject(hdcM, hPenNew);
+        hPenOld = SelectObject(hdcM, hPenNew);
         MoveToEx(hdcM, pState->curX, pState->curY, 0);
         LineTo(hdcM, pState->curX, pState->curY + font_height);
         SelectObject(hdcM, hPenOld);

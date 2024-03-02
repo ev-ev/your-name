@@ -9,8 +9,7 @@ int getLineSzFrom(int dt, struct llchar* pptr, HDC hdc){
         pptr = pptr->next;
     }
     LPWSTR lpWideCharStr = malloc(dt * 6);
-    size_t lpWideSz = dt * 6;
-    lpWideSz = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, line, dt, lpWideCharStr, dt * 6);
+    size_t lpWideSz = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, line, dt, lpWideCharStr, dt * 6);
     GetTextExtentPoint32(hdc, lpWideCharStr, lpWideSz, &sz);
     free(lpWideCharStr);
     free(line);
