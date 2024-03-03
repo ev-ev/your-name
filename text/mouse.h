@@ -206,6 +206,8 @@ int MOUSE_processMouseDownInMenu(int x, int y, HWND hwnd, struct StateInfo* pSta
             
             pState->selected_logfont.lfHeight = pState->font_size;
             
+            SETTINGS_saveLogFont(pState->selected_logfont);
+            
             HFONT hOldFont = (HFONT)SelectObject(pState->hdcM, pState->hNewFont);
             
             TEXTMETRIC lptm;

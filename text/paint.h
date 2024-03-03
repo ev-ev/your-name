@@ -63,9 +63,9 @@ int PAINT_renderMainWindow(HWND hwnd,struct StateInfo* pState){
     DrawIconEx(hdcM, 0 * dpi_scale, 3 * dpi_scale, iconList[0], 24 * dpi_scale , 24 * dpi_scale, 0, 0, DI_NORMAL);
     DrawIconEx(hdcM, 24 * dpi_scale, 3 * dpi_scale, iconList[1], 24 * dpi_scale, 24 * dpi_scale, 0, 0, DI_NORMAL);
     if (history_stack->len == hsswls)
-        DrawIconEx(hdcM, 24*2 * dpi_scale, 3 * dpi_scale, iconList[3], 24 * dpi_scale, 24 * dpi_scale, 0, 0, DI_NORMAL);
-    else
         DrawIconEx(hdcM, 24*2 * dpi_scale, 3 * dpi_scale, iconList[2], 24 * dpi_scale, 24 * dpi_scale, 0, 0, DI_NORMAL);
+    else
+        DrawIconEx(hdcM, 24*2 * dpi_scale, 3 * dpi_scale, iconList[3], 24 * dpi_scale, 24 * dpi_scale, 0, 0, DI_NORMAL);
     DrawIconEx(hdcM, (24*3+4) * dpi_scale, (3+4) * dpi_scale, iconList[4], 16 * dpi_scale, 16 * dpi_scale, 0, 0, DI_NORMAL);
     DrawIconEx(hdcM, 24*5 * dpi_scale, 3 * dpi_scale, iconList[5], 24 * dpi_scale, 24 * dpi_scale, 0, 0, DI_NORMAL);
     

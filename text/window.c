@@ -5,6 +5,7 @@
 #include <time.h>
 
 #include "definitions.h"
+#include "settings.h"
 #include "scroll.h"
 #include "atomic.h"
 #include "paint.h"
@@ -47,14 +48,23 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             pState->hPenNew = CreatePen(PS_SOLID, 1, RGB(0,0,0));
             
             //Create font for text
-            HFONT hFont = GetStockObject(DEFAULT_GUI_FONT);
-            GetObject(hFont, sizeof(pState->selected_logfont), &pState->selected_logfont);
+            if (!SETTINGS_loadLogFont(&pState->selected_logfont)) {
+                //Defaults
+                ZeroMemory(&pState->selected_logfont, sizeof(pState->selected_logfont));
+                pState->selected_logfont.lfHeight = -23;
+                pState->selected_logfont.lfWeight = 400;
+                memcpy(pState->selected_logfont.lfFaceName, L"Calibri", 16);
+            }
+            
+            pState->font_size = pState->selected_logfont.lfHeight;
             
             pState->selected_logfont.lfHeight = pState->font_size * dpi_scale;
             
             pState->hNewFont = CreateFontIndirect(&pState->selected_logfont);
             
             pState->selected_logfont.lfHeight = pState->font_size;
+            
+            
             
             HFONT hOldFont = (HFONT)SelectObject(pState->hdcM, pState->hNewFont);
             
