@@ -24,6 +24,7 @@ struct StateInfo {
     
     float dpi_scale;
     
+    int click_rollback; //Helper variable for knowing if the mouse is 'ahead' of the cursor or behind
     int is_dragging;
     int drag_dir;
     int block_dragging; //This annoying little thing is required due to IFileDialog being bugged
@@ -34,7 +35,7 @@ struct StateInfo {
     
     int scrollY; //Current scrolled pos
     
-    PWSTR fp_st; //file pointer (unused)
+    PWSTR fp_st; //file pointer
     
     struct llchar* head; //Start of file
     struct llchar* cur; //Insertion point in file
@@ -60,10 +61,14 @@ struct StateInfo {
     struct ATOMIC_internal_history_stack* history_stack;
     int history_stack_size_when_last_saved;
     
+    struct MENUS_BASE_Header* menu_list;
+    int menu_amt;
+    
     HDC hdcM;
     HBITMAP hbmM;
     HPEN hPenNew;
     HFONT hNewFont;
+    HCURSOR textEditCursor;
     LOGFONT selected_logfont;
     HICON iconList[ICON_AMOUNT];
     SCROLLINFO scroll_info;

@@ -7,7 +7,7 @@
 #include "utils.h"
 #include "paint.h"
 
-struct llchar* MOUSE_processMouseDownInClientArea(int x, int y, int font_height, int scrollY, struct llchar* head, HWND hwnd, HFONT hNewFont, int* state_line_alloc, char** state_line) {
+struct llchar* MOUSE_processMouseDownInClientArea(int x, int y, int font_height, int scrollY, struct llchar* head, HWND hwnd, HFONT hNewFont, int* state_line_alloc, char** state_line, int* state_click_rollback) {
     PAINTSTRUCT ps;
     HDC hdc = BeginPaint(hwnd, &ps);
     HFONT hOldFont = (HFONT)SelectObject(hdc, hNewFont);
@@ -46,8 +46,10 @@ struct llchar* MOUSE_processMouseDownInClientArea(int x, int y, int font_height,
         last_sz = sz;
         GetTextExtentPoint32(hdc, lpWideCharStr, lpWideSz, &sz);
         if (sz.cx > x) {
+            *state_click_rollback = 0;
             if (x - last_sz.cx < sz.cx - x) {
                 ptr = ptr->prev;
+                *state_click_rollback = 1;
             }
             break;
         }
@@ -235,7 +237,7 @@ int MOUSE_processMouseDragInClientArea(int x, int y, HWND hwnd, struct StateInfo
         pState->is_dragging = 1;
     }
     
-    struct llchar* ptr = MOUSE_processMouseDownInClientArea(x, y, pState->font_height, pState->scrollY, pState->head, hwnd, pState->hNewFont, &pState->line_alloc, &pState->line);
+    struct llchar* ptr = MOUSE_processMouseDownInClientArea(x, y, pState->font_height, pState->scrollY, pState->head, hwnd, pState->hNewFont, &pState->line_alloc, &pState->line,  &pState->click_rollback);
     if (pState->cur == ptr)
         return 0;
     pState->requireCursorUpdate = 1;
@@ -258,17 +260,19 @@ int MOUSE_processMouseLUP(int x, int y, HWND hwnd, struct StateInfo* pState) {
 
 int MOUSE_processDoubleClickInClientArea(struct StateInfo* pState) {
     //First find the start of the word, then the end of the word
-    if (!LLCHAR_testIfIsLetter(pState->cur))
-        return 0;
-    
     struct llchar* ptr = pState->cur;
-    while (ptr->prev && LLCHAR_testIfIsLetter(ptr)) {
+    if (pState->click_rollback)
+        ptr = ptr->next; //If the cursor is really ahead, we need to drag from the correct character
+    struct llchar* start = ptr;
+    int first_is_letter = LLCHAR_testIfIsLetter(ptr);
+    
+    while (ptr->prev && (LLCHAR_testIfIsLetter(ptr) == first_is_letter)) {
         ptr = ptr->prev;
     }
     pState->drag_from = ptr;
     
-    ptr = pState->cur;
-    while (ptr->next && LLCHAR_testIfIsLetter(ptr)) {
+    ptr = start;
+    while (ptr->next && (LLCHAR_testIfIsLetter(ptr) == first_is_letter)) {
         ptr = ptr->next;
     }
     pState->cur = ptr->prev;

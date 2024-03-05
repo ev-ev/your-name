@@ -5,7 +5,7 @@
 #include <time.h>
 
 #include "definitions.h"
-#include "settings.h"
+#include "persist.h"
 #include "scroll.h"
 #include "atomic.h"
 #include "paint.h"
@@ -13,6 +13,7 @@
 #include "utils.h"
 #include "keys.h"
 #include "mouse.h"
+#include "menus/base.h"
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
     struct StateInfo* pState = (struct StateInfo*) GetWindowLongPtr(hwnd, GWLP_USERDATA);
@@ -81,23 +82,6 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             //Initialize scrollbar
             SCROLL_initScrollInfo(&pState->scroll_info);
             //:3
-            
-            //Load icons
-            SHSTOCKICONINFO sii;
-            sii.cbSize = sizeof(sii);
-            
-            SHGetStockIconInfo(SIID_DOCASSOC, SHGSI_ICON, &sii);
-            pState->iconList[0] = sii.hIcon;
-            SHGetStockIconInfo(SIID_FOLDEROPEN, SHGSI_ICON, &sii);
-            pState->iconList[1] = sii.hIcon;
-            SHGetStockIconInfo(SIID_DRIVE525, SHGSI_ICON, &sii);
-            pState->iconList[2] = sii.hIcon;
-            SHGetStockIconInfo(SIID_DRIVE35, SHGSI_ICON, &sii);
-            pState->iconList[3] = sii.hIcon;
-            SHGetStockIconInfo(SIID_ERROR, SHGSI_ICON, &sii);
-            pState->iconList[4] = sii.hIcon;
-            SHGetStockIconInfo(SIID_RENAME, SHGSI_ICON, &sii);
-            pState->iconList[5] = sii.hIcon;
             
             return 0;
         }
@@ -297,8 +281,12 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             if (wParam == MK_LBUTTON) {
                 pState->drag_from = 0;
                 pState->drag_dir = 0;
+                
+                //if (MENUS_BASE_GEN_ALL_Click(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), hwnd, pState))
+                //    return 0;
+                
                 if (GET_Y_LPARAM(lParam) > PAINT_MENU_RESERVED_SPACE){
-                    pState->cur = MOUSE_processMouseDownInClientArea(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), pState->font_height, pState->scrollY, pState->head, hwnd, pState->hNewFont, &pState->line_alloc, &pState->line);
+                    pState->cur = MOUSE_processMouseDownInClientArea(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), pState->font_height, pState->scrollY, pState->head, hwnd, pState->hNewFont, &pState->line_alloc, &pState->line, &pState->click_rollback);
                     pState->requireCursorUpdate = 1;
                     
                     KillTimer(hwnd, 1);
@@ -461,27 +449,36 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             
             return 0;
         }
+        case WM_SETCURSOR:
+        {
+            break;
+        }
     }
     return DefWindowProc(hwnd, uMsg, wParam, lParam);
 }
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow){
-    const wchar_t CLASS_NAME[] = L"YourName Class";
-    WNDCLASS wc;
-    wc.cbClsExtra = 0;
-    wc.cbWndExtra = 0;
-    wc.hCursor = LoadCursor(0, IDC_ARROW);
-    wc.hIcon = LoadIcon(0, IDI_WINLOGO);
-    wc.lpszMenuName = 0;
-    wc.style = CS_DBLCLKS;
-    wc.hbrBackground = 0;
-    wc.lpfnWndProc = WindowProc;
-    wc.hInstance = hInstance;
-    wc.lpszClassName = CLASS_NAME;
-    
-    RegisterClass(&wc);
-    
     struct StateInfo pState = {0};
+    //Load icons
+    SHSTOCKICONINFO sii;
+    sii.cbSize = sizeof(sii);
+    
+    SHGetStockIconInfo(SIID_DOCASSOC, SHGSI_ICON, &sii);
+    pState.iconList[0] = sii.hIcon;
+    SHGetStockIconInfo(SIID_FOLDEROPEN, SHGSI_ICON, &sii);
+    pState.iconList[1] = sii.hIcon;
+    SHGetStockIconInfo(SIID_DRIVE525, SHGSI_ICON, &sii);
+    pState.iconList[2] = sii.hIcon;
+    SHGetStockIconInfo(SIID_DRIVE35, SHGSI_ICON, &sii);
+    pState.iconList[3] = sii.hIcon;
+    SHGetStockIconInfo(SIID_ERROR, SHGSI_ICON, &sii);
+    pState.iconList[4] = sii.hIcon;
+    SHGetStockIconInfo(SIID_RENAME, SHGSI_ICON, &sii);
+    pState.iconList[5] = sii.hIcon;
+    
+    pState.menu_list = malloc(sizeof(*pState.menu_list) * 1);
+    MENUS_BASE_MenuDefault_Init(pState.menu_list);
+    
     pState.cursor_active = 0;
     pState.font_size = -25;
     pState.is_monospaced = 0;
@@ -494,19 +491,25 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     pState.head->wrapped = 0;
     pState.head->next = 0;
     pState.head->prev = 0;
-    if (pCmdLine[0] == 0 || strlen((char*)pCmdLine) > 255){
-        pState.cur = LLCHAR_addStr("Your\nName", 9, pState.head);
-    } else {
-        pState.cur = pState.head;
-        pState.fp_st = CoTaskMemAlloc(wcslen(pCmdLine) * sizeof(wchar_t)); //is this safe
-        memcpy(pState.fp_st, pCmdLine, wcslen(pCmdLine) * sizeof(wchar_t));
-        
-        if (!UTILS_LLCHAR_loadFile(pState.head, pState.fp_st)){
-            pState.cur = LLCHAR_addStr("Failed to load file !", 21, pState.head);
-            CoTaskMemFree(pState.fp_st);
-            pState.fp_st = 0;
-        }
-    }
+    pState.cur = LLCHAR_addStr("Your\nName", 9, pState.head);
+    
+    
+    const wchar_t CLASS_NAME[] = L"YourName Class";
+    WNDCLASS wc;
+    wc.cbClsExtra = 0;
+    wc.cbWndExtra = 0;
+    wc.hCursor = LoadCursor(0, IDC_ARROW);
+    wc.hIcon = pState.iconList[0];
+    wc.lpszMenuName = 0;
+    wc.style = CS_DBLCLKS;
+    wc.hbrBackground = 0;
+    wc.lpfnWndProc = WindowProc;
+    wc.hInstance = hInstance;
+    wc.lpszClassName = CLASS_NAME;
+    
+    RegisterClass(&wc);
+    
+    //pState.textEditCursor = LoadCursor(NULL, IDC_IBEAM);
     
     //Make 'accelerator' table
     ACCEL paccel[7];
@@ -579,6 +582,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     if (pState.fp_st)
         CoTaskMemFree(pState.fp_st);
     DestroyAcceleratorTable(hAccel);
+    
     
     return 0;
 }
