@@ -29,10 +29,12 @@ int SIZE_resizeMainWindow(WPARAM wParam, LPARAM lParam, HWND hwnd,
             *state_hbmM = CreateCompatibleBitmap(hdc, LOWORD(lParam), HIWORD(lParam));
             EndPaint(hwnd, &ps);
             
+            
             InvalidateRect(hwnd, NULL, 0);
             break;
         }
     }
+    
     
     return 0;
 }

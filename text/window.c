@@ -10,10 +10,9 @@
 #include "atomic.h"
 #include "paint.h"
 #include "size.h"
-#include "utils.h"
+#include "llchar.h"
 #include "keys.h"
 #include "mouse.h"
-#include "menus/base.h"
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
     struct StateInfo* pState = (struct StateInfo*) GetWindowLongPtr(hwnd, GWLP_USERDATA);
@@ -28,21 +27,21 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR) pState);
             
             //Get DPI scaling
-            float dpi_scale = GetDpiForWindow(hwnd) / 96.0;
+            double dpi_scale = GetDpiForWindow(hwnd) / 96.0;
             pState->dpi_scale = dpi_scale;
             
             //Make the carret blink
             SetTimer(hwnd, pState->idTimer = 1, GetCaretBlinkTime(), 0);
             
             //Initialize secondary buffer
-            RECT rc;
-            GetClientRect(hwnd, &rc);
-            pState->drawing_width = rc.right - rc.left;
+            //RECT rc;
+            GetClientRect(hwnd, &pState->client_rect);
+            pState->drawing_width = pState->client_rect.right - pState->client_rect.left;
             
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hwnd, &ps);
             pState->hdcM = CreateCompatibleDC(hdc);
-            pState->hbmM = CreateCompatibleBitmap(hdc, rc.right - rc.left, rc.bottom - rc.top);
+            pState->hbmM = CreateCompatibleBitmap(hdc, pState->client_rect.right - pState->client_rect.left, pState->client_rect.bottom - pState->client_rect.top);
             EndPaint(hwnd, &ps);
             
             //Create brush for carret
@@ -54,18 +53,19 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                 ZeroMemory(&pState->selected_logfont, sizeof(pState->selected_logfont));
                 pState->selected_logfont.lfHeight = -23;
                 pState->selected_logfont.lfWeight = 400;
+                pState->selected_logfont.lfQuality = CLEARTYPE_QUALITY;
+                pState->selected_logfont.lfOutPrecision = OUT_TT_PRECIS;
                 memcpy(pState->selected_logfont.lfFaceName, L"Calibri", 16);
             }
             
             pState->font_size = pState->selected_logfont.lfHeight;
             
             pState->selected_logfont.lfHeight = pState->font_size * dpi_scale;
-            
             pState->hNewFont = CreateFontIndirect(&pState->selected_logfont);
-            
             pState->selected_logfont.lfHeight = pState->font_size;
             
-            
+            pState->menu_logfont.lfHeight = MENU_LOGFONT_LFHEIGHT * dpi_scale;
+            pState->menuFont = CreateFontIndirect(&pState->menu_logfont);
             
             HFONT hOldFont = (HFONT)SelectObject(pState->hdcM, pState->hNewFont);
             
@@ -77,11 +77,9 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             
             SelectObject(pState->hdcM, hOldFont);
             
-            //Read file
-            //:3
             //Initialize scrollbar
             SCROLL_initScrollInfo(&pState->scroll_info);
-            //:3
+            //:3         
             
             return 0;
         }
@@ -282,17 +280,17 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                 pState->drag_from = 0;
                 pState->drag_dir = 0;
                 
-                //if (MENUS_BASE_GEN_ALL_Click(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), hwnd, pState))
-                //    return 0;
                 
-                if (GET_Y_LPARAM(lParam) > PAINT_MENU_RESERVED_SPACE){
-                    pState->cur = MOUSE_processMouseDownInClientArea(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), pState->font_height, pState->scrollY, pState->head, hwnd, pState->hNewFont, &pState->line_alloc, &pState->line, &pState->click_rollback);
+                if (GET_Y_LPARAM(lParam) > TOTAL_RESERVED_SPACE * pState->dpi_scale){
+                    pState->cur = MOUSE_processMouseDownInClientArea(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), pState->font_height, pState->scrollY, pState->head, hwnd, pState->hNewFont, pState->dpi_scale, &pState->line_alloc, &pState->line, &pState->click_rollback);
                     pState->requireCursorUpdate = 1;
                     
                     KillTimer(hwnd, 1);
                     pState->cursor_active = 1;
                     SetTimer(hwnd, 1, GetCaretBlinkTime(), 0);
                     InvalidateRect(hwnd, NULL, 0);
+                } else if (GET_Y_LPARAM(lParam) > PAINT_MENU_RESERVED_SPACE * pState->dpi_scale) {
+                    //we are clicking in tabs area
                 } else { //we are clicking on the menu
                     if (MOUSE_processMouseDownInMenu(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), hwnd, pState)){
                         InvalidateRect(hwnd, NULL, 0);
@@ -303,7 +301,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         }
         case WM_LBUTTONDBLCLK:
         {
-            if (GET_Y_LPARAM(lParam) > PAINT_MENU_RESERVED_SPACE){
+            if (GET_Y_LPARAM(lParam) > TOTAL_RESERVED_SPACE * pState->dpi_scale){
                 if (MOUSE_processDoubleClickInClientArea(pState))
                     InvalidateRect(hwnd, NULL, 0);
             }
@@ -311,7 +309,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         }
         case WM_MOUSEMOVE:
         {
-            if (wParam != MK_LBUTTON && GET_Y_LPARAM(lParam) <= PAINT_MENU_RESERVED_SPACE){
+            if (wParam != MK_LBUTTON && GET_Y_LPARAM(lParam) <= PAINT_MENU_RESERVED_SPACE * pState->dpi_scale){
                 MOUSE_processMouseOverMenu(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
             }
             
@@ -325,7 +323,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             }
             
             if (wParam == MK_LBUTTON && !pState->block_dragging) { //Dragging
-                if (GET_Y_LPARAM(lParam) > PAINT_MENU_RESERVED_SPACE || GET_Y_LPARAM(lParam) < 0){
+                if (GET_Y_LPARAM(lParam) > (TOTAL_RESERVED_SPACE * pState->dpi_scale) || pState->is_dragging){
                     if (MOUSE_processMouseDragInClientArea(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), hwnd, pState)){
                         InvalidateRect(hwnd, NULL, 0);
                     }
@@ -350,9 +348,9 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             } else {
                 pState->scrollY += units;
             }
-            RECT rc;
-            GetClientRect(hwnd, &rc);
-            rc.top = PAINT_MENU_RESERVED_SPACE + 1;
+            //RECT rc;
+            //GetClientRect(hwnd, &rc);
+            //rc.top = PAINT_MENU_RESERVED_SPACE + TABS_RESERVED_SPACE;
             //ScrollWindowEx is the devil
             //ScrollWindowEx(hwnd, 0, -pState->font_height * units, &rc, &rc, 0, 0, SW_INVALIDATE);
             InvalidateRect(hwnd, NULL, 0);
@@ -403,9 +401,9 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                 break; 
             }
             //pState->scroll_info.fMask = SIF_POS;
-            RECT rc;
-            GetClientRect(hwnd, &rc);
-            rc.top = PAINT_MENU_RESERVED_SPACE + 1;
+            //RECT rc;
+            //GetClientRect(hwnd, &rc);
+            //rc.top = PAINT_MENU_RESERVED_SPACE + TABS_RESERVED_SPACE;
             //ScrollWindowEx is the devil
             //ScrollWindowEx(hwnd, 0, (oldY - pState->scrollY) * pState->font_height, &rc, &rc, 0, 0, SW_INVALIDATE);
             SCROLL_initScrollInfo(&pState->scroll_info);
@@ -420,12 +418,15 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             //Regenerate font
             GetObject(pState->hNewFont, sizeof(pState->selected_logfont), &pState->selected_logfont);
             DeleteObject(pState->hNewFont);
+            GetObject(pState->menuFont, sizeof(pState->menu_logfont), &pState->menu_logfont);
+            DeleteObject(pState->menuFont);
             
             pState->selected_logfont.lfHeight = pState->font_size * pState->dpi_scale;
-            
             pState->hNewFont = CreateFontIndirect(&pState->selected_logfont);
-            
             pState->selected_logfont.lfHeight = pState->font_size;
+            
+            pState->menu_logfont.lfHeight = MENU_LOGFONT_LFHEIGHT * pState->dpi_scale;
+            pState->menuFont = CreateFontIndirect(&pState->menu_logfont);
             
             HFONT hOldFont = (HFONT)SelectObject(pState->hdcM, pState->hNewFont);
             
@@ -476,9 +477,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     SHGetStockIconInfo(SIID_RENAME, SHGSI_ICON, &sii);
     pState.iconList[5] = sii.hIcon;
     
-    pState.menu_list = malloc(sizeof(*pState.menu_list) * 1);
-    MENUS_BASE_MenuDefault_Init(pState.menu_list);
-    
     pState.cursor_active = 0;
     pState.font_size = -25;
     pState.is_monospaced = 0;
@@ -491,8 +489,13 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     pState.head->wrapped = 0;
     pState.head->next = 0;
     pState.head->prev = 0;
-    pState.cur = LLCHAR_addStr("Your\nName", 9, pState.head);
+    pState.cur = LLCHAR_addStr("Your\nName\nv1.0.4", 16, pState.head);
     
+    //Generate menu default font
+    //pState.menu_logfont.lfHeight = MENU_LOGFONT_LFHEIGHT; //Set this later
+    pState.menu_logfont.lfWeight = 400;
+    memcpy(pState.menu_logfont.lfFaceName, L"Calibri", 16);
+    //pState.menuFont = CreateFontIndirect(&pState.menu_logfont); //We will set this after we know the dpi of the window
     
     const wchar_t CLASS_NAME[] = L"YourName Class";
     WNDCLASS wc;
@@ -508,8 +511,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     wc.lpszClassName = CLASS_NAME;
     
     RegisterClass(&wc);
-    
-    //pState.textEditCursor = LoadCursor(NULL, IDC_IBEAM);
     
     //Make 'accelerator' table
     ACCEL paccel[7];

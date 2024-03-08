@@ -4,16 +4,16 @@
 #include <shobjidl.h>
 #include <unistd.h>
 
-#include "utils.h"
+#include "llchar.h"
 #include "paint.h"
 
-struct llchar* MOUSE_processMouseDownInClientArea(int x, int y, int font_height, int scrollY, struct llchar* head, HWND hwnd, HFONT hNewFont, int* state_line_alloc, char** state_line, int* state_click_rollback) {
+struct llchar* MOUSE_processMouseDownInClientArea(int x, int y, int font_height, int scrollY, struct llchar* head, HWND hwnd, HFONT hNewFont, double dpi_scale, int* state_line_alloc, char** state_line, int* state_click_rollback) {
     PAINTSTRUCT ps;
     HDC hdc = BeginPaint(hwnd, &ps);
     HFONT hOldFont = (HFONT)SelectObject(hdc, hNewFont);
     
     struct llchar* ptr;
-    int line_num = (y - PAINT_MENU_RESERVED_SPACE) / font_height + scrollY;
+    int line_num = (y - TOTAL_RESERVED_SPACE * dpi_scale) / font_height + scrollY;
     ptr = LLCHAR_moveLines(head, line_num);
     
     char* line = *state_line;
@@ -237,7 +237,7 @@ int MOUSE_processMouseDragInClientArea(int x, int y, HWND hwnd, struct StateInfo
         pState->is_dragging = 1;
     }
     
-    struct llchar* ptr = MOUSE_processMouseDownInClientArea(x, y, pState->font_height, pState->scrollY, pState->head, hwnd, pState->hNewFont, &pState->line_alloc, &pState->line,  &pState->click_rollback);
+    struct llchar* ptr = MOUSE_processMouseDownInClientArea(x, y, pState->font_height, pState->scrollY, pState->head, hwnd, pState->hNewFont, pState->dpi_scale, &pState->line_alloc, &pState->line,  &pState->click_rollback);
     if (pState->cur == ptr)
         return 0;
     pState->requireCursorUpdate = 1;

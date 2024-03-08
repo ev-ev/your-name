@@ -1,7 +1,7 @@
 #ifndef ATOMIC_H
 #define ATOMIC_H
 //Why did I call this 'atomic' ? I heard atomic is something to do with undoable functions... Sounds cool though !
-#include "utils.h"
+#include "llchar.h"
 #include "keys.h"
 
 #define ATOMIC_CHAR_ADD 1
@@ -83,7 +83,7 @@ struct llchar* ATOMIC_delete_selection(struct ATOMIC_internal_history_stack** st
     if (start != end){ //This if is required so that we don't call this for non selections
         //The idea is we disconnect the entire chain that we don't need right now, but can simply reconnect it back later when needed
         ATOMIC_internal_addElemToAtomicStack(stack_ptr, ATOMIC_CHAR_REMOVE_MULTI, 0, start, start->next);
-        cur = UTILS_LLCHAR_clear_multi(start->next, end);
+        cur = LLCHAR_clear_multi(start->next, end);
     }
     return cur;
 }
@@ -170,7 +170,7 @@ struct llchar* ATOMIC_handlePastedData(struct ATOMIC_internal_history_stack** st
     }
     
     int len = strlen(text);
-    int cull = UTILS_countCharInstanceInString(text, len, '\r');
+    int cull = countCharInstanceInString(text, len, '\r');
     
     struct llchar* ptr = LLCHAR_addStrEx(text, len, cur, '\r');
     
@@ -199,11 +199,11 @@ struct llchar* ATOMIC_popElemFromAtomicStack(struct ATOMIC_internal_history_stac
         }
         
         if (page.action == ATOMIC_CHAR_REMOVE) {
-            cur = UTILS_LLCHAR_insert(page.cur, page.ptr);
+            cur = LLCHAR_insert(page.cur, page.ptr);
         }
         
         if (page.action == ATOMIC_CHAR_REMOVE_MULTI) {
-            cur = UTILS_LLCHAR_insert_multi_all(page.cur, page.ptr);
+            cur = LLCHAR_insert_multi_all(page.cur, page.ptr);
         }
     }
     return cur;

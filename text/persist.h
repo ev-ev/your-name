@@ -19,25 +19,6 @@ int SETTINGS_saveLogFont(LOGFONT lf) {
         return 0;
     }
     
-    /*
-    //lfHeight, lfWidth, lfEscapement, lfOrientation, lfWeight
-    fwrite(&lf.lfHeight, sizeof(lf.lfHeight), 1, fp);
-    fwrite(&lf.lfWidth, sizeof(lf.lfHeight), 1, fp);
-    fwrite(&lf.lfEscapement, sizeof(lf.lfHeight), 1, fp);
-    fwrite(&lf.lfOrientation, sizeof(lf.lfHeight), 1, fp);
-    fwrite(&lf.lfWeight, sizeof(lf.lfHeight), 1, fp);
-    //lfItalic, lfUnderline, lfStrikeOut, lfCharSet, lfOutPrecision, lfClipPrecision, lfQuality, lfPitchAndFamily
-    fwrite(&lf.lfItalic, sizeof(lf.lfItalic), 1, fp);
-    fwrite(&lf.lfUnderline, sizeof(lf.lfItalic), 1, fp);
-    fwrite(&lf.lfStrikeOut, sizeof(lf.lfItalic), 1, fp);
-    fwrite(&lf.lfCharSet, sizeof(lf.lfItalic), 1, fp);
-    fwrite(&lf.lfOutPrecision, sizeof(lf.lfItalic), 1, fp);
-    fwrite(&lf.lfClipPrecision, sizeof(lf.lfItalic), 1, fp);
-    fwrite(&lf.lfQuality, sizeof(lf.lfItalic), 1, fp);
-    fwrite(&lf.lfPitchAndFamily, sizeof(lf.lfItalic), 1, fp);
-    //lfFaceName
-    fwrite(lf.lfFaceName, sizeof(CHAR), LF_FACESIZE, fp);*/
-    
     fwrite(&lf, sizeof(lf), 1, fp);
     
     fclose(fp);

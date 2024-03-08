@@ -11,10 +11,11 @@ Targets
 [+]Implemenent more accelerators
 [o]Non english support
 >Implement all TEXTMETRIC infos
->Save a config/settings file
 >New tabs
 >Make the first step towards WYSIWYG (add a way to have markers for font type and stuff in text.)
 >Styles
+>Add version info
+>Newlines hylighted when selected
 
 Note
 Please report any issues with text selection not selecting when needed-

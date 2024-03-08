@@ -1,8 +1,11 @@
 #ifndef DEFINITIONS_H
 #define DEFINITIONS_H
 
+#define MENU_LOGFONT_LFHEIGHT (-16)
 #define LLCHAR_HEAD_RESERVED_CHAR 0
 #define PAINT_MENU_RESERVED_SPACE 30
+#define TABS_RESERVED_SPACE 20
+#define TOTAL_RESERVED_SPACE (PAINT_MENU_RESERVED_SPACE+TABS_RESERVED_SPACE)
 #define ICON_AMOUNT 6
 #define CLKS() clock_t start = clock(), diff; 
 #define CLKE() diff = clock() - start; int msec = diff * 1000 / CLOCKS_PER_SEC; printf("Time taken %d seconds %d milliseconds\n", msec/1000, msec%1000);
@@ -22,7 +25,9 @@ struct StateInfo {
     int curX; //Stored location of cursor to be drawn. This is required for animating the cursor flashing so redrawing all the text is not required.
     int curY;
     
-    float dpi_scale;
+    RECT client_rect;
+    
+    double dpi_scale;
     
     int click_rollback; //Helper variable for knowing if the mouse is 'ahead' of the cursor or behind
     int is_dragging;
@@ -68,8 +73,10 @@ struct StateInfo {
     HBITMAP hbmM;
     HPEN hPenNew;
     HFONT hNewFont;
+    HFONT menuFont;
     HCURSOR textEditCursor;
     LOGFONT selected_logfont;
+    LOGFONT menu_logfont;
     HICON iconList[ICON_AMOUNT];
     SCROLLINFO scroll_info;
 };

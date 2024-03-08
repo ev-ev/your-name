@@ -18,17 +18,22 @@ int PAINT_renderMainWindow(HWND hwnd,struct StateInfo* pState){
     SCROLLINFO scroll_info = pState->scroll_info;
     struct ATOMIC_internal_history_stack* history_stack = pState->history_stack;
     int hsswls = pState->history_stack_size_when_last_saved;
-    float dpi_scale = pState->dpi_scale;
+    double dpi_scale = pState->dpi_scale;
+    HPEN hPenOld;
     
     PAINTSTRUCT ps;
     HDC hdc = BeginPaint(hwnd, &ps);
     HDC hbmOld = SelectObject(hdcM, hbmM);
     
-    RECT rect; GetClientRect(hwnd, &rect);
-    RECT text_rect = rect;
-    RECT menu_rect = rect;
-    text_rect.top = PAINT_MENU_RESERVED_SPACE * dpi_scale + 1;
+    GetClientRect(hwnd, &pState->client_rect);
+    RECT text_rect = pState->client_rect;
+    RECT menu_rect = pState->client_rect;
+    RECT tabs_rect = pState->client_rect;
     menu_rect.bottom = PAINT_MENU_RESERVED_SPACE * dpi_scale;
+    tabs_rect.top = PAINT_MENU_RESERVED_SPACE * dpi_scale;
+    tabs_rect.bottom = (PAINT_MENU_RESERVED_SPACE + TABS_RESERVED_SPACE) * dpi_scale;
+    text_rect.top = (PAINT_MENU_RESERVED_SPACE + TABS_RESERVED_SPACE) * dpi_scale;
+    
     
     int max_chars = (text_rect.bottom - text_rect.top) / font_height;
     
@@ -38,24 +43,13 @@ int PAINT_renderMainWindow(HWND hwnd,struct StateInfo* pState){
     SCROLL_commitScrollInfo(hwnd, SB_VERT, &scroll_info, 1);
     
     SCROLL_getScrollInfo(hwnd, SB_VERT, &scroll_info);
-    pState->scrollY = scroll_info.nPos; //Update scrollY with the true scroll position
+    pState->scrollY = scroll_info.nPos; //Update scrollY with the true scroll position    
     
-    int rerendered = 0;
-    LABEL_RERENDER:
-    int rerender = 0;
-    
-    int draw_select = 0;
-    int draw_select_st = 0;
-    int draw_select_ed = 0;
-    
-    int scrollY = pState->scrollY;
-    char* line = pState->line;
-    
-    FillRect(hdcM, &ps.rcPaint, (HBRUSH) (COLOR_WINDOW+1));
-    
-    
-    HFONT hOldFont = (HFONT)SelectObject(hdcM, hNewFont);
     SIZE sz; //For GetTextExtent
+    HFONT hOldFont;
+    
+    hOldFont = (HFONT)SelectObject(hdcM, pState->menuFont);
+    COLORREF prevcolor = SetTextColor(hdcM, 0x006b2021);
     
     //MENU START!!
     
@@ -69,16 +63,80 @@ int PAINT_renderMainWindow(HWND hwnd,struct StateInfo* pState){
     DrawIconEx(hdcM, (24*3+4) * dpi_scale, (3+4) * dpi_scale, iconList[4], 16 * dpi_scale, 16 * dpi_scale, 0, 0, DI_NORMAL);
     DrawIconEx(hdcM, 24*5 * dpi_scale, 3 * dpi_scale, iconList[5], 24 * dpi_scale, 24 * dpi_scale, 0, 0, DI_NORMAL);
     
-    HPEN hPenOld = SelectObject(hdcM, hPenNew);
-    MoveToEx(hdcM, menu_rect.left, menu_rect.bottom, 0);
-    LineTo(hdcM, menu_rect.right, menu_rect.bottom);
-    SelectObject(hdcM, hPenOld);
+    //HPEN hPenOld = SelectObject(hdcM, hPenNew);
+    //MoveToEx(hdcM, menu_rect.left, menu_rect.bottom, 0);
+    //LineTo(hdcM, menu_rect.right, menu_rect.bottom);
+    //SelectObject(hdcM, hPenOld);
     
     //MENU END!!
     
     SetBkMode(hdcM, TRANSPARENT); //Render text with transparent background
     SetMapMode(hdcM, MM_TEXT); //Ensure map mode is pixel to pixel
-    //Divide available space into rows for drawing text
+    
+    //TABS START!!
+    {
+    FillRect(hdcM, &tabs_rect, (HBRUSH) (COLOR_MENU));
+    hPenOld = SelectObject(hdcM, hPenNew);
+    
+    const int title_padding = 20 * dpi_scale;
+    const int seperator_y_padding = 1;
+    
+    //Draw first seperator
+    MoveToEx(hdcM, tabs_rect.left + 1, tabs_rect.top + seperator_y_padding, 0);
+    LineTo(hdcM, tabs_rect.left + 1, tabs_rect.bottom - seperator_y_padding);
+    
+    //First get the required length of the file name
+    PWSTR file_name = pState->fp_st;
+    int file_name_sz;
+    if (!file_name) {
+        file_name = L"your 1";
+        file_name_sz = 6;
+    } else {
+        file_name_sz = wcslen(file_name);
+        PWSTR end_path = file_name;
+        for (int i = 0; i < file_name_sz; i++) {
+            if (file_name[i] == '\\' || file_name[i] == '/')
+                end_path = file_name + i;
+        }
+        file_name_sz -= (int) (end_path - file_name + 1);
+        file_name = end_path + 1;
+    }
+    SIZE required_size;
+    GetTextExtentPoint32(hdcM, file_name, file_name_sz, &required_size);
+    
+    //Draw right seperator
+    //MoveToEx(hdcM, tabs_rect.left, tabs_rect.top, 0);
+    //LineTo(hdcM, tabs_rect.left, tabs_rect.bottom);
+    MoveToEx(hdcM, tabs_rect.left + required_size.cx + title_padding, tabs_rect.top + seperator_y_padding, 0);
+    LineTo(hdcM, tabs_rect.left + required_size.cx + title_padding, tabs_rect.bottom - seperator_y_padding);
+    
+    //Draw text
+    RECT file_name_rect = {.top=tabs_rect.top,.bottom=tabs_rect.bottom,
+                           .left=tabs_rect.left,.right=tabs_rect.left+required_size.cx + title_padding};
+    DrawTextEx(hdcM, file_name, -1, &file_name_rect, DT_CENTER | DT_NOPREFIX, 0);
+    
+    //Draw bottom seperator
+    MoveToEx(hdcM, tabs_rect.left, tabs_rect.bottom, 0);
+    LineTo(hdcM, tabs_rect.right, tabs_rect.bottom);
+    SelectObject(hdcM, hPenOld);
+    }
+    //TABS END!!
+    
+    SetTextColor(hdcM, prevcolor);
+    SelectObject(hdcM, hNewFont); //Select in normal text font
+    
+    int rerendered = 0;
+    LABEL_RERENDER:
+    int rerender = 0;
+    
+    int draw_select = 0;
+    int draw_select_st = 0;
+    int draw_select_ed = 0;
+    
+    int scrollY = pState->scrollY;
+    char* line = pState->line;
+    
+    FillRect(hdcM, &text_rect, (HBRUSH) (COLOR_WINDOW+1));
     
     int current = -scrollY;
     
@@ -195,7 +253,6 @@ int PAINT_renderMainWindow(HWND hwnd,struct StateInfo* pState){
         ptr = ptr->next;
     }
     free(lpWideCharStr);
-    SelectObject(hdcM, hOldFont);
     
     if (ptr)
         pState->totalLines = current + scrollY + ptr->wrapped;
@@ -205,6 +262,7 @@ int PAINT_renderMainWindow(HWND hwnd,struct StateInfo* pState){
         rerendered = 1;
         goto LABEL_RERENDER; //A downside of my approach of deferring everything related to scrolling to WM_PAINT
     }
+    SelectObject(hdcM, hOldFont);
     
     if (rerendered) { //Update scrollbar when scroll pos suddenly changes
         SCROLL_setScrollInfoPos(&scroll_info, pState->scrollY);
@@ -222,7 +280,7 @@ int PAINT_renderMainWindow(HWND hwnd,struct StateInfo* pState){
     }
     
     
-    BitBlt(hdc, rect.left, rect.top, rect.right-rect.left, rect.bottom-rect.top, hdcM, 0, 0, SRCCOPY);
+    BitBlt(hdc, pState->client_rect.left, pState->client_rect.top, pState->client_rect.right-pState->client_rect.left, pState->client_rect.bottom-pState->client_rect.top, hdcM, 0, 0, SRCCOPY);
     
     SelectObject(hdcM, hbmOld);
     
