@@ -6,6 +6,7 @@
 
 #include "llchar.h"
 #include "paint.h"
+#include "tabs.h"
 
 struct llchar* MOUSE_processMouseDownInClientArea(int x, int y, int font_height, int scrollY, struct llchar* head, HWND hwnd, HFONT hNewFont, double dpi_scale, int* state_line_alloc, char** state_line, int* state_click_rollback) {
     PAINTSTRUCT ps;
@@ -93,7 +94,10 @@ int MOUSE_processMouseDownInMenu(int x, int y, HWND hwnd, struct StateInfo* pSta
     {
         case 0: //New document
         {
-            MOUSE_freeAllData(pState);
+            TABS_saveWindowData(pState);
+            //MOUSE_freeAllData(pState);
+            TABS_newStateData(pState);
+            TABS_createWindowData(pState);
             return 1;
         }
         case 1: //Open
@@ -107,8 +111,11 @@ int MOUSE_processMouseDownInMenu(int x, int y, HWND hwnd, struct StateInfo* pSta
                 pfd->lpVtbl->Show(pfd, hwnd);
                 if (SUCCEEDED(pfd->lpVtbl->GetResult(pfd, &psiResult))){
                     if (SUCCEEDED(psiResult->lpVtbl->GetDisplayName(psiResult, SIGDN_FILESYSPATH, &pszFilePath))){
-                        MOUSE_freeAllData(pState);
+                        //MOUSE_freeAllData(pState);
+                        TABS_saveWindowData(pState);
+                        TABS_newStateData(pState);
                         pState->fp_st = pszFilePath;
+                        TABS_createWindowData(pState);
                         if (!_waccess(pszFilePath, 04)) {
                             if (!LLCHAR_loadFile(pState->head, pState->fp_st)){
                                 pState->cur = LLCHAR_addStr("Failed to load file !", 21, pState->head);
@@ -149,8 +156,8 @@ int MOUSE_processMouseDownInMenu(int x, int y, HWND hwnd, struct StateInfo* pSta
                         pfd->lpVtbl->Show(pfd, hwnd);
                         if (SUCCEEDED(pfd->lpVtbl->GetResult(pfd, &psiResult))){
                             if (SUCCEEDED(psiResult->lpVtbl->GetDisplayName(psiResult, SIGDN_FILESYSPATH, &pszFilePath))){
+                                CoTaskMemFree(pState->fp_st);
                                 pState->fp_st = pszFilePath;                                
-                                //CoTaskMemFree(pszFilePath);
                             }
                             psiResult->lpVtbl->Release(psiResult);
                         }
@@ -175,6 +182,9 @@ int MOUSE_processMouseDownInMenu(int x, int y, HWND hwnd, struct StateInfo* pSta
                 }
                 fclose(fp);
                 pState->history_stack_size_when_last_saved = pState->history_stack->len;
+                
+                TABS_refreshWindowName(pState);
+                
                 return 1;
             } else {
                 printf("[DEBUG] User attempted to save but file is good as\n");
@@ -183,7 +193,48 @@ int MOUSE_processMouseDownInMenu(int x, int y, HWND hwnd, struct StateInfo* pSta
         }
         case 3: //The red x thing
         {
-            DestroyWindow(hwnd);
+            if (pState->history_stack->len != pState->history_stack_size_when_last_saved) {
+                int result = MessageBox(hwnd, L"Close saving changes?", L"[Your Name]", MB_YESNOCANCEL | MB_DEFBUTTON1 | MB_APPLMODAL);
+                if (result == IDCANCEL) {
+                    break;
+                }
+                if (result == IDYES) {
+                    if (!MOUSE_processMouseDownInMenu(24 * 2 * pState->dpi_scale, 0, hwnd, pState)){
+                        break;
+                    }
+                }
+            }
+            
+            if (pState->tabs->next == 0){
+                DestroyWindow(hwnd);
+                break;
+            }
+            
+            struct WindowLoadData* tab = pState->tabs;
+            
+            if (tab == pState->selected_tab){
+                TABS_saveWindowData(pState);
+                TABS_loadWindowData(tab->next, pState);
+                TABS_freeWindowData(pState->tabs);
+                pState->tabs = pState->selected_tab;
+                return 1;
+            }
+            
+            while (tab->next) {
+                if (tab->next == pState->selected_tab) {
+                    TABS_saveWindowData(pState);
+                    struct WindowLoadData* to_delete = pState->selected_tab;
+                    tab->next = 0;
+                    TABS_loadWindowData(tab, pState); //Select a different window so we don't vanish into the shadow realm
+                    if (to_delete->next) {
+                        tab->next = to_delete->next;
+                    }
+                    
+                    TABS_freeWindowData(to_delete);
+                    return 1;
+                }
+                tab = tab->next;
+            }
             break;
         }
         case 5: //Settings
@@ -222,6 +273,19 @@ int MOUSE_processMouseDownInMenu(int x, int y, HWND hwnd, struct StateInfo* pSta
             
             break;
         }
+    }
+    return 0;
+}
+
+int MOUSE_processMouseDownInTabs(int x, int y, struct StateInfo* pState) {
+    struct WindowLoadData* tab = pState->tabs;
+    while (tab) {
+        if (tab != pState->selected_tab && x >= tab->active_region_left && x <= tab->active_region_right) {
+            TABS_saveWindowData(pState);
+            TABS_loadWindowData(tab, pState);
+            return 1;
+        }
+        tab = tab->next;
     }
     return 0;
 }

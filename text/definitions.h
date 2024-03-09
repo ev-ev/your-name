@@ -19,6 +19,7 @@ struct llchar {
     struct llchar* next;
 };
 
+//Before adding to here THINK! Should this info be saved per tab? If so, put it into tabs.h
 struct StateInfo {
     int cursor_active; //Used to determine if carret should be drawn or not
     
@@ -66,8 +67,8 @@ struct StateInfo {
     struct ATOMIC_internal_history_stack* history_stack;
     int history_stack_size_when_last_saved;
     
-    struct MENUS_BASE_Header* menu_list;
-    int menu_amt;
+    struct WindowLoadData* tabs;
+    struct WindowLoadData* selected_tab;
     
     HDC hdcM;
     HBITMAP hbmM;
@@ -79,6 +80,28 @@ struct StateInfo {
     LOGFONT menu_logfont;
     HICON iconList[ICON_AMOUNT];
     SCROLLINFO scroll_info;
+};
+
+struct WindowLoadData{
+    wchar_t window_name[25];
+    int active_region_left;
+    int active_region_right;
+    int window_name_sz;
+    int click_rollback;
+    int is_dragging;
+    int drag_dir;
+    int block_dragging;
+    int block_dragging_lparam;
+    int curDt;
+    int scrollY;
+    PWSTR fp_st;
+    struct llchar* head;
+    struct llchar* cur;
+    struct llchar* drag_from;
+    struct ATOMIC_internal_history_stack* history_stack;
+    int history_stack_size_when_last_saved;
+    
+    struct WindowLoadData* next;
 };
 
 #ifdef DBGM

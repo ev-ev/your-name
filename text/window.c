@@ -13,6 +13,7 @@
 #include "llchar.h"
 #include "keys.h"
 #include "mouse.h"
+#include "tabs.h"
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
     struct StateInfo* pState = (struct StateInfo*) GetWindowLongPtr(hwnd, GWLP_USERDATA);
@@ -79,7 +80,11 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             
             //Initialize scrollbar
             SCROLL_initScrollInfo(&pState->scroll_info);
-            //:3         
+            //:3
+            
+            //Initialize first window
+            TABS_createWindowData(pState);
+            
             
             return 0;
         }
@@ -214,7 +219,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                 }
                 case 'S':
                 {
-                    if (MOUSE_processMouseDownInMenu(24 * 2, 0, hwnd, pState))
+                    if (MOUSE_processMouseDownInMenu(24 * 2 * pState->dpi_scale, 0, hwnd, pState))
                         InvalidateRect(hwnd, NULL, 0);
                 }
             }
@@ -273,13 +278,20 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             }
             return 0;
         }
-        
+        case WM_LBUTTONDBLCLK:
+        {
+            if (GET_Y_LPARAM(lParam) > TOTAL_RESERVED_SPACE * pState->dpi_scale){
+                if (MOUSE_processDoubleClickInClientArea(pState))
+                    InvalidateRect(hwnd, NULL, 0);
+                return 0;
+            }
+        }
+        //fall through
         case WM_LBUTTONDOWN:
         {
             if (wParam == MK_LBUTTON) {
                 pState->drag_from = 0;
                 pState->drag_dir = 0;
-                
                 
                 if (GET_Y_LPARAM(lParam) > TOTAL_RESERVED_SPACE * pState->dpi_scale){
                     pState->cur = MOUSE_processMouseDownInClientArea(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), pState->font_height, pState->scrollY, pState->head, hwnd, pState->hNewFont, pState->dpi_scale, &pState->line_alloc, &pState->line, &pState->click_rollback);
@@ -290,20 +302,14 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                     SetTimer(hwnd, 1, GetCaretBlinkTime(), 0);
                     InvalidateRect(hwnd, NULL, 0);
                 } else if (GET_Y_LPARAM(lParam) > PAINT_MENU_RESERVED_SPACE * pState->dpi_scale) {
-                    //we are clicking in tabs area
+                    if (MOUSE_processMouseDownInTabs(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), pState)){
+                        InvalidateRect(hwnd, NULL, 0);
+                    }
                 } else { //we are clicking on the menu
                     if (MOUSE_processMouseDownInMenu(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), hwnd, pState)){
                         InvalidateRect(hwnd, NULL, 0);
                     }
                 }
-            }
-            return 0;
-        }
-        case WM_LBUTTONDBLCLK:
-        {
-            if (GET_Y_LPARAM(lParam) > TOTAL_RESERVED_SPACE * pState->dpi_scale){
-                if (MOUSE_processDoubleClickInClientArea(pState))
-                    InvalidateRect(hwnd, NULL, 0);
             }
             return 0;
         }

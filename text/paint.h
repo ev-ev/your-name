@@ -85,35 +85,36 @@ int PAINT_renderMainWindow(HWND hwnd,struct StateInfo* pState){
     MoveToEx(hdcM, tabs_rect.left + 1, tabs_rect.top + seperator_y_padding, 0);
     LineTo(hdcM, tabs_rect.left + 1, tabs_rect.bottom - seperator_y_padding);
     
-    //First get the required length of the file name
-    PWSTR file_name = pState->fp_st;
-    int file_name_sz;
-    if (!file_name) {
-        file_name = L"your 1";
-        file_name_sz = 6;
-    } else {
-        file_name_sz = wcslen(file_name);
-        PWSTR end_path = file_name;
-        for (int i = 0; i < file_name_sz; i++) {
-            if (file_name[i] == '\\' || file_name[i] == '/')
-                end_path = file_name + i;
+    struct WindowLoadData* tab = pState->tabs;
+    int delta_x = 0;
+    while (tab){
+        //First get the required length of the file name
+        SIZE required_size;
+        GetTextExtentPoint32(hdcM, tab->window_name, tab->window_name_sz, &required_size);
+        
+        //Draw right seperator
+        //MoveToEx(hdcM, tabs_rect.left, tabs_rect.top, 0);
+        //LineTo(hdcM, tabs_rect.left, tabs_rect.bottom);
+        MoveToEx(hdcM, tabs_rect.left + required_size.cx + title_padding + delta_x, tabs_rect.top + seperator_y_padding, 0);
+        LineTo(hdcM, tabs_rect.left + required_size.cx + title_padding + delta_x, tabs_rect.bottom - seperator_y_padding);
+        
+        if (tab == pState->selected_tab){
+            //Draw selection indicator
+            MoveToEx(hdcM, tabs_rect.left + 1 + delta_x, tabs_rect.top, 0);
+            LineTo(hdcM, tabs_rect.left + required_size.cx + title_padding + 1 + delta_x, tabs_rect.top);
         }
-        file_name_sz -= (int) (end_path - file_name + 1);
-        file_name = end_path + 1;
+        
+        //Draw text
+        RECT file_name_rect = {.top=tabs_rect.top,.bottom=tabs_rect.bottom,
+                               .left=tabs_rect.left + delta_x,.right=tabs_rect.left + required_size.cx + title_padding + delta_x};
+        DrawTextEx(hdcM, tab->window_name, -1, &file_name_rect, DT_CENTER | DT_NOPREFIX, 0);
+        
+        tab->active_region_left = file_name_rect.left;
+        tab->active_region_right = file_name_rect.right;
+        
+        delta_x += required_size.cx + title_padding;
+        tab = tab->next;
     }
-    SIZE required_size;
-    GetTextExtentPoint32(hdcM, file_name, file_name_sz, &required_size);
-    
-    //Draw right seperator
-    //MoveToEx(hdcM, tabs_rect.left, tabs_rect.top, 0);
-    //LineTo(hdcM, tabs_rect.left, tabs_rect.bottom);
-    MoveToEx(hdcM, tabs_rect.left + required_size.cx + title_padding, tabs_rect.top + seperator_y_padding, 0);
-    LineTo(hdcM, tabs_rect.left + required_size.cx + title_padding, tabs_rect.bottom - seperator_y_padding);
-    
-    //Draw text
-    RECT file_name_rect = {.top=tabs_rect.top,.bottom=tabs_rect.bottom,
-                           .left=tabs_rect.left,.right=tabs_rect.left+required_size.cx + title_padding};
-    DrawTextEx(hdcM, file_name, -1, &file_name_rect, DT_CENTER | DT_NOPREFIX, 0);
     
     //Draw bottom seperator
     MoveToEx(hdcM, tabs_rect.left, tabs_rect.bottom, 0);
