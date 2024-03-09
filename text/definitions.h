@@ -70,9 +70,20 @@ struct StateInfo {
     struct WindowLoadData* tabs;
     struct WindowLoadData* selected_tab;
     
+    //Stuff relating to window style
+    HBRUSH brush_theme_menu_bg;
+    HBRUSH brush_theme_tabs_bg;
+    HBRUSH brush_theme_client_bg;
+    HPEN pen_theme_tab_seperator;
+    HPEN pen_theme_selected_tab;
+    HPEN pen_theme_caret;
+    HPEN pen_theme_client_separator;
+    COLORREF colorref_theme_tabs_text;
+    COLORREF colorref_theme_client_text;
+    
+    
     HDC hdcM;
     HBITMAP hbmM;
-    HPEN hPenNew;
     HFONT hNewFont;
     HFONT menuFont;
     HCURSOR textEditCursor;

@@ -14,6 +14,7 @@
 #include "keys.h"
 #include "mouse.h"
 #include "tabs.h"
+#include "themes.h"
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
     struct StateInfo* pState = (struct StateInfo*) GetWindowLongPtr(hwnd, GWLP_USERDATA);
@@ -45,8 +46,6 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             pState->hbmM = CreateCompatibleBitmap(hdc, pState->client_rect.right - pState->client_rect.left, pState->client_rect.bottom - pState->client_rect.top);
             EndPaint(hwnd, &ps);
             
-            //Create brush for carret
-            pState->hPenNew = CreatePen(PS_SOLID, 1, RGB(0,0,0));
             
             //Create font for text
             if (!SETTINGS_loadLogFont(&pState->selected_logfont)) {
@@ -116,9 +115,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         case WM_DESTROY:
         {
             KillTimer(hwnd, 1);
-            DeleteObject(pState->hNewFont);
-            DeleteObject(pState->hPenNew);
-            free(pState->line);
+            //DeleteObject(pState->hNewFont);
+            //DeleteObject(pState->hPenNew);
+            //free(pState->line);
+            //TODO write a full destructor
             PostQuitMessage(0);
             return 0;
         }
@@ -495,13 +495,15 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     pState.head->wrapped = 0;
     pState.head->next = 0;
     pState.head->prev = 0;
-    pState.cur = LLCHAR_addStr("Your\nName\nv1.0.4", 16, pState.head);
+    pState.cur = LLCHAR_addStr("Your\nName\nv1.0.5", 16, pState.head);
     
     //Generate menu default font
     //pState.menu_logfont.lfHeight = MENU_LOGFONT_LFHEIGHT; //Set this later
     pState.menu_logfont.lfWeight = 400;
     memcpy(pState.menu_logfont.lfFaceName, L"Calibri", 16);
     //pState.menuFont = CreateFontIndirect(&pState.menu_logfont); //We will set this after we know the dpi of the window
+    
+    THEMES_activateDarkTheme(&pState);
     
     const wchar_t CLASS_NAME[] = L"YourName Class";
     WNDCLASS wc;

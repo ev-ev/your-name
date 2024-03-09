@@ -13,13 +13,11 @@ int PAINT_renderMainWindow(HWND hwnd,struct StateInfo* pState){
     HDC hdcM = pState->hdcM;
     HBITMAP hbmM = pState->hbmM;
     HFONT hNewFont = pState->hNewFont;
-    HPEN hPenNew = pState->hPenNew;
     HICON* iconList = pState->iconList;
     SCROLLINFO scroll_info = pState->scroll_info;
     struct ATOMIC_internal_history_stack* history_stack = pState->history_stack;
     int hsswls = pState->history_stack_size_when_last_saved;
     double dpi_scale = pState->dpi_scale;
-    HPEN hPenOld;
     
     PAINTSTRUCT ps;
     HDC hdc = BeginPaint(hwnd, &ps);
@@ -46,14 +44,14 @@ int PAINT_renderMainWindow(HWND hwnd,struct StateInfo* pState){
     pState->scrollY = scroll_info.nPos; //Update scrollY with the true scroll position    
     
     SIZE sz; //For GetTextExtent
-    HFONT hOldFont;
     
-    hOldFont = (HFONT)SelectObject(hdcM, pState->menuFont);
-    COLORREF prevcolor = SetTextColor(hdcM, 0x006b2021);
+    HPEN hPenOld = SelectObject(hdcM, pState->pen_theme_tab_seperator);
+    HFONT hOldFont = (HFONT)SelectObject(hdcM, pState->menuFont);
+    COLORREF oldColorRef = SetTextColor(hdcM, pState->colorref_theme_tabs_text);
     
     //MENU START!!
     
-    FillRect(hdcM, &menu_rect, (HBRUSH) (COLOR_MENU));
+    FillRect(hdcM, &menu_rect, pState->brush_theme_menu_bg);
     DrawIconEx(hdcM, 0 * dpi_scale, 3 * dpi_scale, iconList[0], 24 * dpi_scale , 24 * dpi_scale, 0, 0, DI_NORMAL);
     DrawIconEx(hdcM, 24 * dpi_scale, 3 * dpi_scale, iconList[1], 24 * dpi_scale, 24 * dpi_scale, 0, 0, DI_NORMAL);
     if (history_stack->len == hsswls)
@@ -63,11 +61,6 @@ int PAINT_renderMainWindow(HWND hwnd,struct StateInfo* pState){
     DrawIconEx(hdcM, (24*3+4) * dpi_scale, (3+4) * dpi_scale, iconList[4], 16 * dpi_scale, 16 * dpi_scale, 0, 0, DI_NORMAL);
     DrawIconEx(hdcM, 24*5 * dpi_scale, 3 * dpi_scale, iconList[5], 24 * dpi_scale, 24 * dpi_scale, 0, 0, DI_NORMAL);
     
-    //HPEN hPenOld = SelectObject(hdcM, hPenNew);
-    //MoveToEx(hdcM, menu_rect.left, menu_rect.bottom, 0);
-    //LineTo(hdcM, menu_rect.right, menu_rect.bottom);
-    //SelectObject(hdcM, hPenOld);
-    
     //MENU END!!
     
     SetBkMode(hdcM, TRANSPARENT); //Render text with transparent background
@@ -75,8 +68,8 @@ int PAINT_renderMainWindow(HWND hwnd,struct StateInfo* pState){
     
     //TABS START!!
     {
-    FillRect(hdcM, &tabs_rect, (HBRUSH) (COLOR_MENU));
-    hPenOld = SelectObject(hdcM, hPenNew);
+    FillRect(hdcM, &tabs_rect, pState->brush_theme_tabs_bg);
+    
     
     const int title_padding = 20 * dpi_scale;
     const int seperator_y_padding = 1;
@@ -95,11 +88,13 @@ int PAINT_renderMainWindow(HWND hwnd,struct StateInfo* pState){
         //Draw right seperator
         //MoveToEx(hdcM, tabs_rect.left, tabs_rect.top, 0);
         //LineTo(hdcM, tabs_rect.left, tabs_rect.bottom);
+        SelectObject(hdcM, pState->pen_theme_tab_seperator);
         MoveToEx(hdcM, tabs_rect.left + required_size.cx + title_padding + delta_x, tabs_rect.top + seperator_y_padding, 0);
         LineTo(hdcM, tabs_rect.left + required_size.cx + title_padding + delta_x, tabs_rect.bottom - seperator_y_padding);
         
         if (tab == pState->selected_tab){
             //Draw selection indicator
+            SelectObject(hdcM, pState->pen_theme_selected_tab);
             MoveToEx(hdcM, tabs_rect.left + 1 + delta_x, tabs_rect.top, 0);
             LineTo(hdcM, tabs_rect.left + required_size.cx + title_padding + 1 + delta_x, tabs_rect.top);
         }
@@ -115,15 +110,10 @@ int PAINT_renderMainWindow(HWND hwnd,struct StateInfo* pState){
         delta_x += required_size.cx + title_padding;
         tab = tab->next;
     }
-    
-    //Draw bottom seperator
-    MoveToEx(hdcM, tabs_rect.left, tabs_rect.bottom, 0);
-    LineTo(hdcM, tabs_rect.right, tabs_rect.bottom);
-    SelectObject(hdcM, hPenOld);
     }
     //TABS END!!
     
-    SetTextColor(hdcM, prevcolor);
+    
     SelectObject(hdcM, hNewFont); //Select in normal text font
     
     int rerendered = 0;
@@ -137,7 +127,14 @@ int PAINT_renderMainWindow(HWND hwnd,struct StateInfo* pState){
     int scrollY = pState->scrollY;
     char* line = pState->line;
     
-    FillRect(hdcM, &text_rect, (HBRUSH) (COLOR_WINDOW+1));
+    FillRect(hdcM, &text_rect, pState->brush_theme_client_bg);
+    
+    //Draw top seperator
+    SelectObject(hdcM, pState->pen_theme_client_separator);
+    MoveToEx(hdcM, tabs_rect.left, tabs_rect.bottom, 0);
+    LineTo(hdcM, tabs_rect.right, tabs_rect.bottom);
+    
+    SetTextColor(hdcM, pState->colorref_theme_client_text);
     
     int current = -scrollY;
     
@@ -274,15 +271,16 @@ int PAINT_renderMainWindow(HWND hwnd,struct StateInfo* pState){
     
     //Draw cursor
     if (cursor_active && pState->curY >= text_rect.top){
-        hPenOld = SelectObject(hdcM, hPenNew);
+        SelectObject(hdcM, pState->pen_theme_caret);
         MoveToEx(hdcM, pState->curX, pState->curY, 0);
         LineTo(hdcM, pState->curX, pState->curY + font_height);
-        SelectObject(hdcM, hPenOld);
     }
     
     
     BitBlt(hdc, pState->client_rect.left, pState->client_rect.top, pState->client_rect.right-pState->client_rect.left, pState->client_rect.bottom-pState->client_rect.top, hdcM, 0, 0, SRCCOPY);
     
+    SetTextColor(hdcM, oldColorRef);
+    SelectObject(hdcM, hPenOld);
     SelectObject(hdcM, hbmOld);
     
     EndPaint(hwnd, &ps);
