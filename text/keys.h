@@ -4,11 +4,13 @@
 int getLineSzFrom(int dt, struct llchar* pptr, HDC hdc){
     SIZE sz;
     char* line = malloc(dt);
+    if (!line) handleCriticalErr();
     for (int i = 0; i < dt; i ++ ) {
         line[i] = pptr->ch;
         pptr = pptr->next;
     }
     LPWSTR lpWideCharStr = malloc(dt * 6);
+    if (!lpWideCharStr) handleCriticalErr();
     int lpWideSz = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, line, dt, lpWideCharStr, dt * 6);
     GetTextExtentPoint32(hdc, lpWideCharStr, lpWideSz, &sz);
     free(lpWideCharStr);

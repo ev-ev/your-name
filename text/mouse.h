@@ -21,6 +21,7 @@ struct llchar* MOUSE_processMouseDownInClientArea(int x, int y, int font_height,
     
     int lpWideSz = *state_line_alloc * 6;
     LPWSTR lpWideCharStr = malloc(lpWideSz);
+    if (!lpWideCharStr)  handleCriticalErr();
     size_t line_sz = 0;
     SIZE sz = {0};
     SIZE last_sz;
@@ -28,12 +29,15 @@ struct llchar* MOUSE_processMouseDownInClientArea(int x, int y, int font_height,
         ptr = ptr->next;
         if (!ptr->wrapped) {
             if (line_sz + 1 > *state_line_alloc) {
-                line = realloc(line, *state_line_alloc * 2);
+                char* tmp = realloc(line, *state_line_alloc * 2);
+                if (!tmp) handleCriticalErr();
+                line = tmp;
                 *state_line = line;
                 *state_line_alloc *= 2;
                 
                 LPWSTR plpWideCharStr = realloc(lpWideCharStr, *state_line_alloc * 6);
                 if (!plpWideCharStr) {
+                    handleCriticalErr();
                     printf("PANIC!! ran out of memory");
                     line_sz -= 1;
                 } else {
@@ -75,6 +79,7 @@ void MOUSE_freeAllData(struct StateInfo* pState){
     
     //Reset all values
     pState->head = malloc(sizeof(struct llchar));
+    if (!pState->head)  handleCriticalErr();
     pState->head->ch = 0;
     pState->head->wrapped = 0;
     pState->head->next = 0;

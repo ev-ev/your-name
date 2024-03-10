@@ -77,13 +77,6 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             
             SelectObject(pState->hdcM, hOldFont);
             
-            //Initialize scrollbar
-            SCROLL_initScrollInfo(&pState->scroll_info);
-            //:3
-            
-            //Initialize first window
-            TABS_createWindowData(pState);
-            
             
             return 0;
         }
@@ -466,7 +459,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow){
     struct StateInfo pState = {0};
-    //Load icons
+    //Load icons into state
     SHSTOCKICONINFO sii;
     sii.cbSize = sizeof(sii);
     
@@ -483,27 +476,20 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     SHGetStockIconInfo(SIID_RENAME, SHGSI_ICON, &sii);
     pState.iconList[5] = sii.hIcon;
     
-    pState.cursor_active = 0;
-    pState.font_size = -25;
-    pState.is_monospaced = 0;
+    //Set the default (inactive) value for the idTimer
     pState.idTimer = -1;
     
-    pState.history_stack = ATOMIC_createAtomicStack();
-    
-    pState.head = malloc(sizeof(struct llchar));
-    pState.head->ch = 0;
-    pState.head->wrapped = 0;
-    pState.head->next = 0;
-    pState.head->prev = 0;
+    //Create first window
+    TABS_newStateData(&pState);
+    TABS_createWindowData(&pState);
     pState.cur = LLCHAR_addStr("Your\nName\nv1.0.5", 16, pState.head);
     
-    //Generate menu default font
-    //pState.menu_logfont.lfHeight = MENU_LOGFONT_LFHEIGHT; //Set this later
+    //Set font weight and family for menu (non client) text
     pState.menu_logfont.lfWeight = 400;
     memcpy(pState.menu_logfont.lfFaceName, L"Calibri", 16);
-    //pState.menuFont = CreateFontIndirect(&pState.menu_logfont); //We will set this after we know the dpi of the window
     
-    THEMES_activateDarkTheme(&pState);
+    //Apply default theme
+    THEMES_activateDefaultTheme(&pState);
     
     const wchar_t CLASS_NAME[] = L"YourName Class";
     WNDCLASS wc;
@@ -517,7 +503,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     wc.lpfnWndProc = WindowProc;
     wc.hInstance = hInstance;
     wc.lpszClassName = CLASS_NAME;
-    
     RegisterClass(&wc);
     
     //Make 'accelerator' table

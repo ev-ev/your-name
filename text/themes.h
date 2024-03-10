@@ -8,6 +8,7 @@
 //  Tabs text (fg)                  -   pState->colorref_theme_tabs_text
 //  Tab seperator color             -   pState->pen_theme_tab_seperator
 //  Selected tab seperator color    -   pState->pen_theme_selected_tab
+//  Seperator between menu and tabs -   pState->pen_theme_menu_tab_seperator
 //  Client area top seperator       -   pState->pen_theme_client_separator
 //  Client area background          -   pState->brush_theme_client_bg
 //  Client area text color          -   pState->colorref_theme_client_text
@@ -32,6 +33,10 @@ void THEMES_activateDefaultTheme(struct StateInfo* pState) {
     if (pState->pen_theme_selected_tab)
         DeleteObject(pState->pen_theme_selected_tab);
     pState->pen_theme_selected_tab = CreatePen(PS_SOLID, 1, RGB(0,0,0));
+    //  Seperator between menu and tabs
+    if (pState->pen_theme_menu_tab_seperator)
+        DeleteObject(pState->pen_theme_menu_tab_seperator);
+    pState->pen_theme_menu_tab_seperator = CreatePen(PS_SOLID, 1, RGB(169, 181, 194));
     //  Client area top seperator
     if (pState->pen_theme_client_separator)
         DeleteObject(pState->pen_theme_client_separator);
@@ -67,6 +72,10 @@ void THEMES_activateDarkTheme(struct StateInfo* pState) {
     if (pState->pen_theme_selected_tab)
         DeleteObject(pState->pen_theme_selected_tab);
     pState->pen_theme_selected_tab = CreatePen(PS_SOLID, 1, RGB(230,230,230));
+    //  Seperator between menu and tabs
+    if (pState->pen_theme_menu_tab_seperator)
+        DeleteObject(pState->pen_theme_menu_tab_seperator);
+    pState->pen_theme_menu_tab_seperator = CreatePen(PS_SOLID, 1, RGB(169, 181, 194));
     //  Client area top seperator
     if (pState->pen_theme_client_separator)
         DeleteObject(pState->pen_theme_client_separator);

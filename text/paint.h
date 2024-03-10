@@ -70,11 +70,15 @@ int PAINT_renderMainWindow(HWND hwnd,struct StateInfo* pState){
     {
     FillRect(hdcM, &tabs_rect, pState->brush_theme_tabs_bg);
     
+    SelectObject(hdcM, pState->pen_theme_menu_tab_seperator);
+    MoveToEx(hdcM, tabs_rect.left + 1, tabs_rect.top, 0);
+    LineTo(hdcM, tabs_rect.right - 1, tabs_rect.top);
     
     const int title_padding = 20 * dpi_scale;
     const int seperator_y_padding = 1;
     
     //Draw first seperator
+    SelectObject(hdcM, pState->pen_theme_tab_seperator);
     MoveToEx(hdcM, tabs_rect.left + 1, tabs_rect.top + seperator_y_padding, 0);
     LineTo(hdcM, tabs_rect.left + 1, tabs_rect.bottom - seperator_y_padding);
     
@@ -141,11 +145,13 @@ int PAINT_renderMainWindow(HWND hwnd,struct StateInfo* pState){
     if (!line){
         pState->line_alloc = (text_rect.right - text_rect.left)/(font_width) + 10;
         line = malloc(pState->line_alloc);
+        if (!line) handleCriticalErr();
         pState->line = line;
     }
     
     int lpWideSz = pState->line_alloc * 6;
     LPWSTR lpWideCharStr = malloc(lpWideSz);
+    if (!lpWideCharStr) handleCriticalErr();
     size_t line_sz = 0;
     struct llchar* ptr = head; // First is reserved 
     
@@ -157,12 +163,15 @@ int PAINT_renderMainWindow(HWND hwnd,struct StateInfo* pState){
         }
         if (ptr->ch != '\n' && ptr != head){
             if (line_sz + 1 > pState->line_alloc) {
-                line = realloc(line, pState->line_alloc * 2);
+                char* tmp = realloc(line, pState->line_alloc * 2);
+                if (!tmp) handleCriticalErr();
+                line = tmp;
                 pState->line = line;
                 pState->line_alloc *= 2;
                 
                 LPWSTR plpWideCharStr = realloc(lpWideCharStr, pState->line_alloc * 6);
                 if (!plpWideCharStr) {
+                    handleCriticalErr();
                     printf("PANIC!! ran out of memory");
                     line_sz -= 1;
                 } else {

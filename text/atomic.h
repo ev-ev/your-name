@@ -22,6 +22,7 @@ struct ATOMIC_internal_history_stack {
 
 struct ATOMIC_internal_history_stack* ATOMIC_createAtomicStack() {
     struct ATOMIC_internal_history_stack* stack = malloc(sizeof(struct ATOMIC_internal_history_stack) + sizeof(struct ATOMIC_internal_history) * 25);
+    if (!stack) handleCriticalErr();
     stack->len = 0;
     stack->size = 25;
     return stack;

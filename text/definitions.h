@@ -10,7 +10,15 @@
 #define CLKS() clock_t start = clock(), diff; 
 #define CLKE() diff = clock() - start; int msec = diff * 1000 / CLOCKS_PER_SEC; printf("Time taken %d seconds %d milliseconds\n", msec/1000, msec%1000);
 
-
+#pragma GCC push_options
+#pragma GCC optimize ("O0")
+void int_handleCriticalErr(char* file, int line) {
+    MessageBox(0, L"Critical panic in YourName: Out of memory.\n Please attach debugger now...",L"Error", MB_OK | MB_ICONERROR | MB_TASKMODAL);
+    __debugbreak();
+    exit(-1);
+}
+#define handleCriticalErr() int_handleCriticalErr(__FILE__, __LINE__)
+#pragma GCC pop_options
 
 struct llchar {
     char ch;
@@ -76,6 +84,7 @@ struct StateInfo {
     HBRUSH brush_theme_client_bg;
     HPEN pen_theme_tab_seperator;
     HPEN pen_theme_selected_tab;
+    HPEN pen_theme_menu_tab_seperator;
     HPEN pen_theme_caret;
     HPEN pen_theme_client_separator;
     COLORREF colorref_theme_tabs_text;
@@ -157,8 +166,7 @@ void* malloc_safe(char* file, int line, int size) {
     return ptr;
 }
 
-void* realloc_safe(void* ptr, int size) {
-    //printf("realloc(%p, %d)\n", ptr, size);
+void* realloc_safe(char* file, int line, void* ptr, int size) {
     void* newptr = 0;
     int found_ptr = 0;
     for (int i = 0; i < safe_malloc_list_i; i++) {
@@ -214,7 +222,6 @@ void* realloc_safe(void* ptr, int size) {
 }
 
 void free_safe(char* file, int line, void* ptr) {
-    //printf("free(%p)\n", ptr);
     for (int i = 0; i < safe_malloc_list_i; i++) {
         if (ptr == safe_malloc_list[i].ptr) {
             if (safe_malloc_list[i].freed) {
@@ -253,7 +260,7 @@ int test_magic(int stats) {
     return ok;
 }
 #define malloc(...) malloc_safe(__FILE__, __LINE__, __VA_ARGS__)
-#define realloc realloc_safe
+#define realloc(...) realloc_safe(__FILE__, __LINE__, __VA_ARGS__)
 #define free(...) free_safe(__FILE__, __LINE__, __VA_ARGS__)
 #endif
 
