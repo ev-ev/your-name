@@ -4,9 +4,7 @@ Your name is a text editor written in C for windows using Windows API. Planning 
 
 
 
-https://github.com/ev-ev/your-name/assets/27211692/e4eca168-84de-4a74-9228-bdfa65d59f9f
-
-
+https://github.com/ev-ev/your-name/assets/27211692/03e9a8d3-7c63-4f8e-9d8c-7d25efa21a5d
 
 
 ## Contributing
