@@ -149,6 +149,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             
             pState->drag_from = 0;
             pState->drag_dir = 0;
+            pState->is_dragging = 0;
             
             KillTimer(hwnd, 1);
             pState->cursor_active = 1;

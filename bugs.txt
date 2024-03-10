@@ -11,10 +11,8 @@ Targets
 [+]Implemenent more accelerators
 [o]Non english support
 >Implement all TEXTMETRIC infos
->New tabs
 >Make the first step towards WYSIWYG (add a way to have markers for font type and stuff in text.)
 >Styles
->Add version info
 >Newlines hylighted when selected
 
 Note
