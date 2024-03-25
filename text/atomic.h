@@ -149,19 +149,27 @@ struct llchar* ATOMIC_handleInputCharacter(struct ATOMIC_internal_history_stack*
     return cur;
 }
 
+int countCharInstanceInString(wchar_t* in, int insz, wchar_t ch) {
+    int count = 0;
+    for (int i = 0; i < insz; i++){
+        count += in[i] == ch ? 1 : 0;
+    }
+    return count;
+}
+
 struct llchar* ATOMIC_handlePastedData(struct ATOMIC_internal_history_stack** stack_ptr, struct llchar* cur){
     if (!OpenClipboard(0)) {
         printf("Error opening clipboard");
         return 0;
     }
     
-    HANDLE clip = GetClipboardData(CF_TEXT);
+    HANDLE clip = GetClipboardData(CF_UNICODETEXT);
     if (!clip) {
         printf("No clipboard data object");
         CloseClipboard();
         return 0;
     }
-    char* text = (char*) GlobalLock(clip);
+    wchar_t* text = (wchar_t*) GlobalLock(clip);
     
     if (!text) {
         printf("No clipboard data");
@@ -170,7 +178,7 @@ struct llchar* ATOMIC_handlePastedData(struct ATOMIC_internal_history_stack** st
         return 0;
     }
     
-    int len = strlen(text);
+    int len = wcslen(text);
     int cull = countCharInstanceInString(text, len, '\r');
     
     struct llchar* ptr = LLCHAR_addStrEx(text, len, cur, '\r');

@@ -129,7 +129,7 @@ int PAINT_renderMainWindow(HWND hwnd,struct StateInfo* pState){
     int draw_select_ed = 0;
     
     int scrollY = pState->scrollY;
-    char* line = pState->line;
+    wchar_t* line = pState->line;
     
     FillRect(hdcM, &text_rect, pState->brush_theme_client_bg);
     
@@ -144,14 +144,11 @@ int PAINT_renderMainWindow(HWND hwnd,struct StateInfo* pState){
     
     if (!line){
         pState->line_alloc = (text_rect.right - text_rect.left)/(font_width) + 10;
-        line = malloc(pState->line_alloc);
+        line = malloc(pState->line_alloc * sizeof(*line));
         if (!line) handleCriticalErr();
         pState->line = line;
     }
     
-    int lpWideSz = pState->line_alloc * 6;
-    LPWSTR lpWideCharStr = malloc(lpWideSz);
-    if (!lpWideCharStr) handleCriticalErr();
     size_t line_sz = 0;
     struct llchar* ptr = head; // First is reserved 
     
@@ -163,27 +160,17 @@ int PAINT_renderMainWindow(HWND hwnd,struct StateInfo* pState){
         }
         if (ptr->ch != '\n' && ptr != head){
             if (line_sz + 1 > pState->line_alloc) {
-                char* tmp = realloc(line, pState->line_alloc * 2);
+                wchar_t* tmp = realloc(line, pState->line_alloc * 2 * sizeof(*line));
                 if (!tmp) handleCriticalErr();
                 line = tmp;
                 pState->line = line;
                 pState->line_alloc *= 2;
-                
-                LPWSTR plpWideCharStr = realloc(lpWideCharStr, pState->line_alloc * 6);
-                if (!plpWideCharStr) {
-                    handleCriticalErr();
-                    printf("PANIC!! ran out of memory");
-                    line_sz -= 1;
-                } else {
-                    lpWideCharStr = plpWideCharStr;
-                }
             }
             line[line_sz] = ptr->ch;
             line_sz += 1;
         }
         //Prepare line and get its size
-        lpWideSz = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, line, line_sz, lpWideCharStr, pState->line_alloc * 6);
-        GetTextExtentPoint32(hdcM, lpWideCharStr, lpWideSz, &sz);
+        GetTextExtentPoint32(hdcM, line, line_sz, &sz);
         
         if (ptr == cur){ //If its a newline, pointer at the start, otherwise at the end of line           
             if (ptr->ch == '\n') {
@@ -193,6 +180,7 @@ int PAINT_renderMainWindow(HWND hwnd,struct StateInfo* pState){
             } else {
                 pState->curX = text_rect.left + sz.cx;
                 pState->curY = current * font_height + text_rect.top;
+                
                 pState->curAtLine = current + scrollY;
             }
             //Check if cursor is outside camera view. If it is, oops time to rerender the scene
@@ -242,7 +230,7 @@ int PAINT_renderMainWindow(HWND hwnd,struct StateInfo* pState){
                     FillRect(hdcM, &hyrect, (HBRUSH) COLOR_HIGHLIGHT);
                     draw_select_st = 0; //Next lines are dragged from zero
                 }
-                TabbedTextOut(hdcM, text_rect.left, (current) * font_height + text_rect.top, lpWideCharStr, line_sz, 0, 0, 0);  
+                TabbedTextOut(hdcM, text_rect.left, (current) * font_height + text_rect.top, line, line_sz, 0, 0, 0);  
             } else {
                 if (draw_select && draw_select_ed)
                     draw_select = 0;
@@ -259,7 +247,6 @@ int PAINT_renderMainWindow(HWND hwnd,struct StateInfo* pState){
         }
         ptr = ptr->next;
     }
-    free(lpWideCharStr);
     
     if (ptr)
         pState->totalLines = current + scrollY + ptr->wrapped;

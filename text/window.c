@@ -274,10 +274,13 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         }
         case WM_LBUTTONDBLCLK:
         {
-            if (GET_Y_LPARAM(lParam) > TOTAL_RESERVED_SPACE * pState->dpi_scale){
-                if (MOUSE_processDoubleClickInClientArea(pState))
-                    InvalidateRect(hwnd, NULL, 0);
-                return 0;
+            if (!pState->drag_from) { //If there is a selection already fall through
+                pState->dbl_click_time = timeGetTime();
+                if (GET_Y_LPARAM(lParam) > TOTAL_RESERVED_SPACE * pState->dpi_scale){
+                    if (MOUSE_processDoubleClickInClientArea(pState))
+                        InvalidateRect(hwnd, NULL, 0);
+                    return 0;
+                }
             }
         }
         //fall through
@@ -288,9 +291,17 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                 pState->drag_dir = 0;
                 
                 if (GET_Y_LPARAM(lParam) > TOTAL_RESERVED_SPACE * pState->dpi_scale){
-                    pState->cur = MOUSE_processMouseDownInClientArea(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), pState->font_height, pState->scrollY, pState->head, hwnd, pState->hNewFont, pState->dpi_scale, &pState->line_alloc, &pState->line, &pState->click_rollback);
-                    pState->requireCursorUpdate = 1;
+                    //Check if its a triple click - select whole line
+                    if (pState->dbl_click_time != timeGetTime() && timeGetTime() - pState->dbl_click_time < GetDoubleClickTime()) {
+                        pState->dbl_click_time = 0;
+                        if (MOUSE_processTripleClickInClientArea(pState)){
+                            InvalidateRect(hwnd, NULL, 0);
+                        }
+                    } else {
+                        pState->cur = MOUSE_processMouseDownInClientArea(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), pState->font_height, pState->scrollY, pState->head, hwnd, pState->hNewFont, pState->dpi_scale, &pState->line_alloc, &pState->line, &pState->click_rollback);
+                    }
                     
+                    pState->requireCursorUpdate = 1;
                     KillTimer(hwnd, 1);
                     pState->cursor_active = 1;
                     SetTimer(hwnd, 1, GetCaretBlinkTime(), 0);

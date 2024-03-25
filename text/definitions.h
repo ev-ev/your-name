@@ -21,7 +21,7 @@ void int_handleCriticalErr(char* file, int line) {
 #pragma GCC pop_options
 
 struct llchar {
-    char ch;
+    wchar_t ch;
     char wrapped;
     struct llchar* prev;
     struct llchar* next;
@@ -43,6 +43,7 @@ struct StateInfo {
     int drag_dir;
     int block_dragging; //This annoying little thing is required due to IFileDialog being bugged
     int block_dragging_lparam;
+    DWORD dbl_click_time; //For triple clicks
     
     int curDt; //When traversing a file, store the location of the cursor
     int requireCursorUpdate; // Was cursor moved/character inputed?
@@ -58,7 +59,7 @@ struct StateInfo {
     size_t totalLines;
     size_t curAtLine; //Stores the location of the cursor from the last update of WM_PAINT
     
-    char* line; //Memory allocated and reused every line to process lines of text.
+    wchar_t* line; //Memory allocated and reused every line to process lines of text.
     int line_alloc; //Count of allocated bytes
     
     int font_size; //Set by external call, determines point size of font

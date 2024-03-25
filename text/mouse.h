@@ -8,7 +8,7 @@
 #include "paint.h"
 #include "tabs.h"
 
-struct llchar* MOUSE_processMouseDownInClientArea(int x, int y, int font_height, int scrollY, struct llchar* head, HWND hwnd, HFONT hNewFont, double dpi_scale, int* state_line_alloc, char** state_line, int* state_click_rollback) {
+struct llchar* MOUSE_processMouseDownInClientArea(int x, int y, int font_height, int scrollY, struct llchar* head, HWND hwnd, HFONT hNewFont, double dpi_scale, int* state_line_alloc, wchar_t** state_line, int* state_click_rollback) {
     PAINTSTRUCT ps;
     HDC hdc = BeginPaint(hwnd, &ps);
     HFONT hOldFont = (HFONT)SelectObject(hdc, hNewFont);
@@ -17,11 +17,8 @@ struct llchar* MOUSE_processMouseDownInClientArea(int x, int y, int font_height,
     int line_num = (y - TOTAL_RESERVED_SPACE * dpi_scale) / font_height + scrollY;
     ptr = LLCHAR_moveLines(head, line_num);
     
-    char* line = *state_line;
+    wchar_t* line = *state_line;
     
-    int lpWideSz = *state_line_alloc * 6;
-    LPWSTR lpWideCharStr = malloc(lpWideSz);
-    if (!lpWideCharStr)  handleCriticalErr();
     size_t line_sz = 0;
     SIZE sz = {0};
     SIZE last_sz;
@@ -29,27 +26,17 @@ struct llchar* MOUSE_processMouseDownInClientArea(int x, int y, int font_height,
         ptr = ptr->next;
         if (!ptr->wrapped) {
             if (line_sz + 1 > *state_line_alloc) {
-                char* tmp = realloc(line, *state_line_alloc * 2);
+                wchar_t* tmp = realloc(line, *state_line_alloc * 2 * sizeof(*line));
                 if (!tmp) handleCriticalErr();
                 line = tmp;
                 *state_line = line;
                 *state_line_alloc *= 2;
-                
-                LPWSTR plpWideCharStr = realloc(lpWideCharStr, *state_line_alloc * 6);
-                if (!plpWideCharStr) {
-                    handleCriticalErr();
-                    printf("PANIC!! ran out of memory");
-                    line_sz -= 1;
-                } else {
-                    lpWideCharStr = plpWideCharStr;
-                }
             }
             line[line_sz] = ptr->ch;
             line_sz += 1;
         }
-        lpWideSz = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, line, line_sz, lpWideCharStr, *state_line_alloc * 6);
         last_sz = sz;
-        GetTextExtentPoint32(hdc, lpWideCharStr, lpWideSz, &sz);
+        GetTextExtentPoint32(hdc, line, line_sz, &sz);
         if (sz.cx > x) {
             *state_click_rollback = 0;
             if (x - last_sz.cx < sz.cx - x) {
@@ -60,7 +47,6 @@ struct llchar* MOUSE_processMouseDownInClientArea(int x, int y, int font_height,
         }
         
     }
-    free(lpWideCharStr);
     
     SelectObject(hdc, hOldFont);
     EndPaint(hwnd, &ps);
@@ -180,7 +166,7 @@ int MOUSE_processMouseDownInMenu(int x, int y, HWND hwnd, struct StateInfo* pSta
                     printf("Write access violation!\n");
                     return 0;
                 }
-                char* pchar = 0;
+                wchar_t* pchar = 0;
                 int chars = LLCHAR_to_pchar(pState->head, &pchar);
                 if (chars) {
                     fwrite(pchar, sizeof(pState->head->ch), chars, fp);
@@ -342,6 +328,32 @@ int MOUSE_processDoubleClickInClientArea(struct StateInfo* pState) {
     
     ptr = start;
     while (ptr->next && (LLCHAR_testIfIsLetter(ptr) == first_is_letter)) {
+        ptr = ptr->next;
+    }
+    pState->cur = ptr->prev;
+    if (!ptr->next)
+        pState->cur = ptr;
+    
+    pState->drag_dir = 1;
+    
+    return 1;
+}
+
+int MOUSE_processTripleClickInClientArea(struct StateInfo* pState) {
+    //First find the start of the line, then the end of the line
+    struct llchar* ptr = pState->cur;
+    //if (pState->click_rollback)
+    //    ptr = ptr->next; //If the cursor is really ahead, we need to drag from the correct character
+    struct llchar* start = ptr;
+    //int first_is_letter = LLCHAR_testIfIsLetter(ptr);
+    
+    while (ptr->prev && !ptr->wrapped) {
+        ptr = ptr->prev;
+    }
+    pState->drag_from = ptr;
+    
+    ptr = start;
+    while (ptr->next && !ptr->wrapped) {
         ptr = ptr->next;
     }
     pState->cur = ptr->prev;

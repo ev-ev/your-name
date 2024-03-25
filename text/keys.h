@@ -3,17 +3,14 @@
 
 int getLineSzFrom(int dt, struct llchar* pptr, HDC hdc){
     SIZE sz;
-    char* line = malloc(dt);
+    wchar_t* line = malloc(sizeof(pptr->ch) * dt);
     if (!line) handleCriticalErr();
-    for (int i = 0; i < dt; i ++ ) {
+    int i;
+    for (i = 0; i < dt; i ++ ) {
         line[i] = pptr->ch;
         pptr = pptr->next;
     }
-    LPWSTR lpWideCharStr = malloc(dt * 6);
-    if (!lpWideCharStr) handleCriticalErr();
-    int lpWideSz = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, line, dt, lpWideCharStr, dt * 6);
-    GetTextExtentPoint32(hdc, lpWideCharStr, lpWideSz, &sz);
-    free(lpWideCharStr);
+    GetTextExtentPoint32(hdc, line, i + 1, &sz);
     free(line);
     return sz.cx;
 }
@@ -259,7 +256,7 @@ struct llchar* KEYS_handleCursorMove(WPARAM wParam, struct llchar* cur, HDC dc, 
 
 int KEYS_copySelectedText(struct StateInfo* pState) {
     size_t elem = 0;
-    char* pchar = 0;
+    wchar_t* pchar = 0;
     if (pState->drag_dir == 1) {
         elem = LLCHAR_from_to_pchar(pState->drag_from->next, pState->cur, &pchar);
     } else if (pState->drag_dir == -1) {
@@ -268,9 +265,9 @@ int KEYS_copySelectedText(struct StateInfo* pState) {
         return 0;
     }
     
-    HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, elem + 1);
-    char* phMem = (char*) GlobalLock(hMem);
-    memcpy(phMem, pchar, elem);
+    HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, (elem + 1) * sizeof(wchar_t));
+    wchar_t* phMem = (wchar_t*) GlobalLock(hMem);
+    memcpy(phMem, pchar, elem * sizeof(*pchar));
     phMem[elem] = 0;
     GlobalUnlock(hMem);
     if (!OpenClipboard(0)) {
@@ -278,7 +275,7 @@ int KEYS_copySelectedText(struct StateInfo* pState) {
         return 0;
     }
     EmptyClipboard();
-    SetClipboardData(CF_TEXT, hMem);
+    SetClipboardData(CF_UNICODETEXT, hMem);
     CloseClipboard();
     
     return 1;
